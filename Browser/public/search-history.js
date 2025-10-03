@@ -1,5 +1,4 @@
 
-// Search History Management Module
 class SearchHistoryManager {
     constructor() {
         this.SEARCH_HISTORY_KEY = 'searchHistory';
@@ -17,20 +16,18 @@ class SearchHistoryManager {
     }
 
     hashQuery(query) {
-        // Simple hash function for query deduplication
+        
         let hash = 0;
         for (let i = 0; i < query.length; i++) {
             const char = query.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32-bit integer
+            hash = hash & hash; 
         }
         return Math.abs(hash).toString();
     }
 
     saveSearchToHistory(query, requestId) {
         if (!query || typeof query !== 'string') return;
-        
-        // Sanitize query before saving
         const sanitizedQuery = this.sanitizeQuery(query);
         if (!sanitizedQuery) return;
 
@@ -39,17 +36,15 @@ class SearchHistoryManager {
             const queryHash = this.hashQuery(sanitizedQuery.toLowerCase().trim());
             const timestamp = Date.now();
             
-            // Check if query already exists
+            
             const existingIndex = history.findIndex(item => item.queryHash === queryHash);
             
             if (existingIndex !== -1) {
-                // Update existing entry timestamp and move to top
                 history[existingIndex].timestamp = timestamp;
                 history[existingIndex].requestId = this.sanitizeRequestId(requestId);
                 const updatedItem = history.splice(existingIndex, 1)[0];
                 history.unshift(updatedItem);
             } else {
-                // Add new search to the beginning
                 history.unshift({ 
                     query: sanitizedQuery, 
                     queryHash, 
@@ -128,11 +123,10 @@ class SearchHistoryManager {
         // Close dropdown first
         this.toggleSearchHistory();
         
-        // Set search input
+        
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.value = query;
-            // Perform search using search manager
             if (window.searchManager) {
                 window.searchManager.performSearch(query);
             }
@@ -159,7 +153,7 @@ class SearchHistoryManager {
         
         let sanitized = query.trim();
         
-        // Remove dangerous characters
+        
         sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
         sanitized = sanitized.replace(/<[^>]*>/g, '');
         
@@ -186,7 +180,7 @@ class SearchHistoryManager {
     }
 }
 
-// Global functions for inline event handlers
+
 function toggleSearchHistory() {
     if (window.searchHistory) {
         window.searchHistory.toggleSearchHistory();
@@ -199,7 +193,7 @@ function clearSearchHistory() {
     }
 }
 
-// Initialize when DOM is loaded
+// DOM
 document.addEventListener('DOMContentLoaded', function() {
     window.searchHistory = new SearchHistoryManager();
 });
