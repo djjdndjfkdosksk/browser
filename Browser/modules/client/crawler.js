@@ -392,7 +392,7 @@ class CrawlerModule {
 
       console.log(`🚀 [${urlHash}] ارسال محتوا به Agent برای خلاصه‌سازی...`);
 
-      const agentResponse = await axios.post('https://gshsh.onrender.com/api/process', {
+      const agentResponse = await axios.post('https://gshsh-production.up.railway.app/api/process', {
         fileId: urlHash,
         jsonData: jsonContent
       }, {
