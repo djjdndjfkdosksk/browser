@@ -1,8 +1,6 @@
-// متغیرهای عمومی
 let currentUser = null;
 let userToken = null;
 
-// بررسی احراز هویت
 function checkAuthentication() {
     const sessionId = localStorage.getItem('sessionId');
     const csrfToken = localStorage.getItem('csrfToken');
@@ -11,12 +9,11 @@ function checkAuthentication() {
         return false;
     }
 
-    // تنظیم توکن‌ها برای درخواست‌های بعدی
     userToken = { sessionId, csrfToken };
     return true;
 }
 
-// نمایش پیام خطا
+
 function showError(elementId, message) {
     const errorElement = document.getElementById(elementId);
     if (errorElement) {
@@ -25,7 +22,7 @@ function showError(elementId, message) {
     }
 }
 
-// نمایش پیام موفقیت
+
 function showSuccess(elementId, message) {
     const successElement = document.getElementById(elementId);
     if (successElement) {
@@ -34,7 +31,7 @@ function showSuccess(elementId, message) {
     }
 }
 
-// پاک کردن پیام‌ها
+
 function clearMessages() {
     const errorElements = document.querySelectorAll('.error-message');
     const successElements = document.querySelectorAll('.success-message');
@@ -43,7 +40,6 @@ function clearMessages() {
     successElements.forEach(el => el.style.display = 'none');
 }
 
-// درخواست به سرور
 async function makeRequest(url, method = 'GET', data = null) {
     const options = {
         method,
@@ -52,13 +48,11 @@ async function makeRequest(url, method = 'GET', data = null) {
         }
     };
 
-    // اضافه کردن توکن‌های احراز هویت
+    
     if (userToken) {
         options.headers['x-session-id'] = userToken.sessionId;
         options.headers['x-csrf-token'] = userToken.csrfToken;
-    }
-
-    // اضافه کردن داده‌ها برای POST
+    } 
     if (data) {
         options.body = JSON.stringify(data);
     }
@@ -77,7 +71,6 @@ async function makeRequest(url, method = 'GET', data = null) {
     }
 }
 
-// صفحه ورود
 if (document.getElementById('loginForm')) {
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -110,7 +103,7 @@ if (document.getElementById('loginForm')) {
     });
 }
 
-// صفحه ثبت‌نام
+
 if (document.getElementById('registerForm')) {
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -142,12 +135,11 @@ if (document.getElementById('registerForm')) {
     });
 }
 
-// صفحه فراموشی رمز عبور
-let currentResetToken = null; // متغیر برای ذخیره توکن reset
+let currentResetToken = null; 
 
 if (document.getElementById('verifyForm')) {
 
-    // دریافت سوال امنیتی
+    
     document.getElementById('getQuestionBtn').addEventListener('click', async function() {
         clearMessages();
 
@@ -170,7 +162,7 @@ if (document.getElementById('verifyForm')) {
         }
     });
 
-    // تایید پاسخ سوال امنیتی
+    
     document.getElementById('answerForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         clearMessages();
@@ -194,9 +186,7 @@ if (document.getElementById('verifyForm')) {
             showError('errorMessage', error.message);
         }
     });
-}
-
-// تنظیم رمز عبور جدید
+} 
 if (document.getElementById('resetForm')) {
     document.getElementById('resetForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -229,7 +219,7 @@ if (document.getElementById('resetForm')) {
     });
 }
 
-// Main page - Load user profile
+// Main pag e
 async function loadUserProfile() {
     try {
         const result = await makeRequest('/api/profile');
@@ -262,7 +252,7 @@ async function loadUserProfile() {
     }
 }
 
-// User dropdown functionality
+
 if (document.getElementById('userInfo')) {
     const userInfo = document.getElementById('userInfo');
     const dropdownMenu = document.getElementById('dropdownMenu');
@@ -271,27 +261,24 @@ if (document.getElementById('userInfo')) {
         e.stopPropagation();
         dropdownMenu.classList.toggle('show');
     });
-
-    // Close dropdown when clicking outside
     document.addEventListener('click', function() {
         dropdownMenu.classList.remove('show');
     });
 
-    // Prevent dropdown from closing when clicking inside it
+    
     dropdownMenu.addEventListener('click', function(e) {
         e.stopPropagation();
     });
 }
 
-// خروج از سیستم
+
 if (document.getElementById('logoutBtn')) {
     document.getElementById('logoutBtn').addEventListener('click', async function() {
         try {
             await makeRequest('/api/logout', 'POST');
         } catch (error) {
             console.error('Logout error:', error);
-        } finally {
-            // پاک کردن توکن‌ها
+        } finally { 
             localStorage.clear();
             window.location.href = 'login.html';
         }
