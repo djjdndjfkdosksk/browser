@@ -166,7 +166,6 @@ class SearchManager {
             `;
 
             html += '<div class="original-results" style="margin-top: 20px;">';
-            html += '<h4>Original Results:</h4>';
             data.organic.forEach(result => {
                 const url = result.link || '#';
                 const title = this.escapeHtml(result.title || 'No title');
