@@ -1,3 +1,7 @@
+/* ===== SEARCH RESULTS DEDICATED STYLES ===== */
+/* Enhanced search results styling with improved mobile/desktop responsiveness */
+
+/* Search Results Section */
 .search-results {
     width: 100%;
     max-width: 95vw;
@@ -435,13 +439,6 @@
     margin-top: 2rem;
 }
 
-.original-results h4 {
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 1.2rem;
-    margin-bottom: 1.5rem;
-    font-weight: 600;
-}
-
 /* ===== RESPONSIVE DESIGN ===== */
 
 /* Large Desktop (1440px+) */
@@ -720,11 +717,6 @@
 
     .result-url {
         font-size: 0.8rem;
-    }
-
-    .original-results h4 {
-        font-size: 1.1rem;
-        margin-bottom: 1.2rem;
     }
 
     .loading, .no-summaries, .error {
