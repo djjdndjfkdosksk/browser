@@ -153,7 +153,7 @@ class SummaryManager {
         const summariesContainer = document.getElementById('summariesContainer');
         if (!summariesContainer) return;
 
-        let html = '<h4>AI Generated Summaries:</h4>';
+        let html = '';
 
         summaries.forEach((summary, index) => {
             if (summary.summary) {
