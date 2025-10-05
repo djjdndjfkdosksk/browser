@@ -1,8 +1,9 @@
 // AI Summaries Management Module
 class SummaryManager {
     constructor() {
-        this.pollInterval = 2000; // 2 seconds
+        this.pollInterval = 5000; // 5 seconds
         this.maxPollTime = 60000; // 1 minute max polling
+        this.waitTime = 20000; // 20 seconds wait for < 3 summaries
     }
 
     // Load summaries for a search request with auto-refresh
@@ -109,6 +110,18 @@ class SummaryManager {
                 );
 
                 if (validSummaries.length > 0) {
+                    // If we have less than 3 summaries, wait 20 seconds before displaying
+                    if (validSummaries.length < 3) {
+                        const elapsedTime = Date.now() - startTime;
+                        if (elapsedTime < this.waitTime) {
+                            // Continue polling until 20 seconds have passed
+                            setTimeout(() => {
+                                this.pollForSummaries(requestId, btn, startTime);
+                            }, this.pollInterval);
+                            return;
+                        }
+                    }
+                    
                     // Found valid summaries - display them and stop polling
                     this.displaySummaries(validSummaries);
                     btn.disabled = false;
@@ -158,15 +171,16 @@ class SummaryManager {
         summaries.forEach((summary, index) => {
             if (summary.summary) {
                 const summaryId = `summary-${index}`;
-                const shortUrl = this.truncateUrl(summary.originalUrl);
+                const mainTitle = this.extractMainTitle(summary.summary);
+                const shortTitle = this.truncateTitle(mainTitle);
                 const escapedUrl = this.escapeHtml(summary.originalUrl);
-                const escapedShortUrl = this.escapeHtml(shortUrl);
+                const escapedTitle = this.escapeHtml(shortTitle);
 
                 html += `
                     <div class="summary-item">
                         <div class="summary-header" onclick="window.summaryManager.toggleSummary('${summaryId}')">
                             <div class="summary-title">
-                                <span class="summary-url-title">${escapedShortUrl}</span>
+                                <span class="summary-url-title">${escapedTitle}</span>
                                 <span class="toggle-icon" id="icon-${summaryId}">+</span>
                             </div>
                         </div>
@@ -239,6 +253,39 @@ class SummaryManager {
     }
 
     // Utility functions
+    extractMainTitle(markdown) {
+        if (!markdown || typeof markdown !== 'string') return 'Untitled Summary';
+        
+        // Extract first heading from markdown (# Title or ## Title or ### Title)
+        const lines = markdown.split('\n');
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            // Check for markdown headings
+            if (trimmedLine.startsWith('# ')) {
+                return trimmedLine.substring(2).trim();
+            } else if (trimmedLine.startsWith('## ')) {
+                return trimmedLine.substring(3).trim();
+            } else if (trimmedLine.startsWith('### ')) {
+                return trimmedLine.substring(4).trim();
+            }
+        }
+        
+        // If no heading found, use first non-empty line
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine.length > 0) {
+                return trimmedLine;
+            }
+        }
+        
+        return 'Untitled Summary';
+    }
+
+    truncateTitle(title) {
+        if (!title || typeof title !== 'string') return 'Untitled Summary';
+        return title.length > 50 ? title.substring(0, 50) + '...' : title;
+    }
+
     truncateUrl(url) {
         if (!url || typeof url !== 'string') return 'Unknown URL';
         return url.length > 50 ? url.substring(0, 50) + '...' : url;
