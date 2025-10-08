@@ -41,9 +41,9 @@ class SearchLimitModule {
         DELETE FROM user_daily_usage WHERE date < ?
       `, [cutoffDateStr]);
 
-      this.logger.info('ماژول محدودیت سرچ روزانه آماده شد');
+      this.logger.info('Daily search limit module ready');
     } catch (error) {
-      this.logger.error('خطا در راه‌اندازی ماژول محدودیت سرچ', error);
+      this.logger.error('Error initializing search limit module', error);
       throw error;
     }
   }
@@ -54,19 +54,31 @@ class SearchLimitModule {
 
   async getEffectiveLimit(userId) {
     try {
-      const result = await this.database.query(
+      const customLimitResult = await this.database.query(
         `SELECT daily_limit FROM user_limits WHERE user_id = ?`,
         [userId]
       );
       
-      if (result && result.rows && result.rows.length > 0) {
-        return result.rows[0].daily_limit;
+      if (customLimitResult && customLimitResult.rows && customLimitResult.rows.length > 0) {
+        return customLimitResult.rows[0].daily_limit;
       }
       
-      return this.defaultDailyLimit;
+      const userResult = await this.database.query(
+        `SELECT verification_status FROM users WHERE id = ?`,
+        [userId]
+      );
+      
+      if (userResult && userResult.rows && userResult.rows.length > 0) {
+        const verificationStatus = userResult.rows[0].verification_status;
+        if (verificationStatus === 'verified') {
+          return 100;
+        }
+      }
+      
+      return 10;
     } catch (error) {
-      this.logger.error('خطا در دریافت محدودیت کاربر', error);
-      return this.defaultDailyLimit;
+      this.logger.error('Error retrieving user limit', error);
+      return 10;
     }
   }
 
@@ -155,7 +167,7 @@ class SearchLimitModule {
         limit: limit
       };
     } catch (error) {
-      this.logger.error('خطا در بررسی و افزایش محدودیت سرچ', error);
+      this.logger.error('Error checking and incrementing search limit', error);
       return { allowed: false, currentCount: 0, limit: this.defaultDailyLimit };
     }
   }
@@ -180,7 +192,7 @@ class SearchLimitModule {
         limit: limit
       };
     } catch (error) {
-      this.logger.error('خطا در بررسی محدودیت سرچ', error);
+      this.logger.error('Error checking search limit', error);
       return { isOver: false, currentCount: 0, limit: this.defaultDailyLimit };
     }
   }
@@ -192,7 +204,7 @@ class SearchLimitModule {
           `DELETE FROM user_limits WHERE user_id = ?`,
           [userId]
         );
-        this.logger.info(`محدودیت شخصی کاربر ${userId} حذف شد`);
+        this.logger.info(`User ${userId} custom limit removed`);
       } else {
         await this.database.query(`
           INSERT INTO user_limits (user_id, daily_limit, updated_at)
@@ -201,11 +213,11 @@ class SearchLimitModule {
             daily_limit = ?,
             updated_at = CURRENT_TIMESTAMP
         `, [userId, limit, limit]);
-        this.logger.info(`محدودیت روزانه کاربر ${userId} به ${limit} تغییر یافت`);
+        this.logger.info(`User ${userId} daily limit changed to ${limit}`);
       }
       return true;
     } catch (error) {
-      this.logger.error('خطا در تنظیم محدودیت شخصی کاربر', error);
+      this.logger.error('Error setting user custom limit', error);
       return false;
     }
   }
@@ -224,7 +236,7 @@ class SearchLimitModule {
       const result = await this.incrementIfAllowed(userId);
 
       if (!result.allowed) {
-        this.logger.security('محدودیت سرچ روزانه', { 
+        this.logger.security('Daily search limit reached', { 
           userId, 
           currentCount: result.currentCount,
           limit: result.limit,
@@ -233,8 +245,7 @@ class SearchLimitModule {
         
         return res.status(429).json({
           success: false,
-          error: 'محدودیت سرچ روزانه به پایان رسید. لطفاً فردا دوباره تلاش کنید.',
-          errorEn: 'Daily search limit reached. Please try again tomorrow.',
+          error: 'Daily search limit reached. Please try again tomorrow.',
           currentCount: result.currentCount,
           limit: result.limit
         });
@@ -242,7 +253,7 @@ class SearchLimitModule {
 
       next();
     } catch (error) {
-      this.logger.error('خطا در middleware محدودیت سرچ', error);
+      this.logger.error('Error in search limit middleware', error);
       return res.status(500).json({
         success: false,
         error: 'Internal server error'
@@ -264,7 +275,7 @@ class SearchLimitModule {
       const result = await this.isOverLimit(userId);
 
       if (result.isOver) {
-        this.logger.security('تلاش برای دسترسی به summaries با محدودیت سرچ تمام شده', { 
+        this.logger.security('Attempt to access summaries with depleted search limit', { 
           userId, 
           currentCount: result.currentCount,
           limit: result.limit,
@@ -273,8 +284,7 @@ class SearchLimitModule {
         
         return res.status(429).json({
           success: false,
-          error: 'محدودیت سرچ روزانه به پایان رسید. لطفاً فردا دوباره تلاش کنید.',
-          errorEn: 'Daily search limit reached. Please try again tomorrow.',
+          error: 'Daily search limit reached. Please try again tomorrow.',
           currentCount: result.currentCount,
           limit: result.limit
         });
@@ -282,7 +292,7 @@ class SearchLimitModule {
 
       next();
     } catch (error) {
-      this.logger.error('خطا در middleware بررسی محدودیت', error);
+      this.logger.error('Error in limit check middleware', error);
       return res.status(500).json({
         success: false,
         error: 'Internal server error'

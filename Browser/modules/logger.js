@@ -31,7 +31,7 @@ class Logger {
     
     fs.appendFile(logPath, logLine, (err) => {
       if (err) {
-        console.error('خطا در ذخیره log:', err);
+        console.error('Error saving log:', err);
       }
     });
   }
@@ -116,7 +116,7 @@ class Logger {
     const [seconds, nanoseconds] = process.hrtime(timer.startTime);
     const milliseconds = Math.round((seconds * 1000) + (nanoseconds / 1000000));
     
-    this.info(`عملیات ${timer.label} در ${milliseconds}ms تکمیل شد`, {
+    this.info(`Operation ${timer.label} completed in ${milliseconds}ms`, {
       operation: timer.label,
       duration: milliseconds
     });

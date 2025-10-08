@@ -37,7 +37,7 @@ class AdminDownloadModule {
     
     const now = Date.now();
     if (now > tokenData.expiresAt) {
-      logger.security('توکن دانلود منقضی شده', { token });
+      logger.security('Download token expired', { token });
       return false;
     }
     
@@ -53,14 +53,14 @@ class AdminDownloadModule {
     return new Promise((resolve, reject) => {
       try {
         if (!this.validateDirectory(dirName)) {
-          logger.security('تلاش دانلود دایرکتوری غیرمجاز', { dirName });
+          logger.security('Attempt to download unauthorized directory', { dirName });
           return reject(new Error('Invalid directory'));
         }
 
         const dirPath = path.join(this.baseDir, dirName);
         
         if (!fs.existsSync(dirPath)) {
-          logger.error('دایرکتوری یافت نشد', null, { dirPath });
+          logger.error('Directory not found', null, { dirPath });
           return reject(new Error('Directory not found'));
         }
 
@@ -77,12 +77,12 @@ class AdminDownloadModule {
 
         // Handle archive events
         archive.on('error', (err) => {
-          logger.error('خطا در ایجاد آرشیو', err);
+          logger.error('Error creating archive', err);
           reject(err);
         });
 
         archive.on('end', () => {
-          logger.info(`آرشیو ${dirName} با موفقیت ایجاد شد`, { 
+          logger.info(`Archive ${dirName} created successfully`, { 
             bytes: archive.pointer() 
           });
           resolve();
@@ -91,14 +91,14 @@ class AdminDownloadModule {
         // Pipe archive data to response
         archive.pipe(res);
 
-        // Add directory to archive - فایل‌ها داخل یک پوشه با نام dirName قرار می‌گیرند
+        // Add directory to archive - files are placed in a folder named dirName
         archive.directory(dirPath, dirName);
 
         // Finalize archive
         archive.finalize();
 
       } catch (error) {
-        logger.error('خطا در createZipArchive', error);
+        logger.error('Error in createZipArchive', error);
         reject(error);
       }
     });
@@ -128,7 +128,7 @@ class AdminDownloadModule {
         dirCount: stats.dirCount
       };
     } catch (error) {
-      logger.error('خطا در دریافت آمار دایرکتوری', error, { dirName });
+      logger.error('Error retrieving directory statistics', error, { dirName });
       return null;
     }
   }
@@ -174,7 +174,7 @@ class AdminDownloadModule {
     return new Promise(async (resolve, reject) => {
       try {
         if (!this.validateDirectory(targetDirectory)) {
-          logger.security('تلاش بازیابی به دایرکتوری غیرمجاز', { targetDirectory });
+          logger.security('Attempt to restore to unauthorized directory', { targetDirectory });
           return reject(new Error('Invalid target directory'));
         }
 
@@ -183,27 +183,27 @@ class AdminDownloadModule {
         const entries = zip.getEntries();
         
         if (entries.length === 0) {
-          return reject(new Error('فایل زیپ خالی است'));
+          return reject(new Error('Zip file is empty'));
         }
 
-        // تحلیل ساختار زیپ
+        // Analyze zip structure
         let rootFolders = new Set();
         let hasTargetFolder = false;
         let wrapperFolder = null;
         
-        // شناسایی پوشه‌های ریشه در زیپ
+        // Identify root folders in zip
         for (const entry of entries) {
           const parts = entry.entryName.split('/').filter(p => p);
           if (parts.length > 0) {
             const firstPart = parts[0];
             rootFolders.add(firstPart);
             
-            // بررسی اگر پوشه هدف مستقیماً در ریشه است
+            // Check if target folder is directly in root
             if (firstPart === targetDirectory) {
               hasTargetFolder = true;
             }
             
-            // بررسی اگر پوشه هدف در لایه دوم است (client-content-ID/client_content/)
+            // Check if target folder is in second level (client-content-ID/client_content/)
             if (parts.length > 1 && parts[1] === targetDirectory) {
               wrapperFolder = firstPart;
             }
@@ -212,16 +212,16 @@ class AdminDownloadModule {
 
         const targetPath = path.join(this.baseDir, targetDirectory);
         
-        logger.info('ساختار زیپ تحلیل شد', { 
+        logger.info('Zip structure analyzed', { 
           rootFolders: Array.from(rootFolders),
           hasTargetFolder,
           wrapperFolder,
           targetDirectory
         });
 
-        // حالت 1: زیپ شامل مستقیماً پوشه هدف است (client_content/...)
+        // Mode 1: Zip directly contains target folder (client_content/...)
         if (hasTargetFolder) {
-          logger.info('حالت 1: استخراج مستقیم - پوشه هدف در ریشه زیپ');
+          logger.info('Mode 1: Direct extraction - target folder in zip root');
           
           for (const entry of entries) {
             if (entry.entryName.startsWith(targetDirectory + '/')) {
@@ -245,9 +245,9 @@ class AdminDownloadModule {
             }
           }
         }
-        // حالت 2: زیپ شامل پوشه wrapper است (client-content-ID/client_content/...)
+        // Mode 2: Zip contains wrapper folder (client-content-ID/client_content/...)
         else if (wrapperFolder) {
-          logger.info('حالت 2: استخراج از wrapper - پوشه wrapper:', wrapperFolder);
+          logger.info('Mode 2: Extract from wrapper - wrapper folder:', wrapperFolder);
           
           const prefix = wrapperFolder + '/' + targetDirectory + '/';
           
@@ -273,11 +273,11 @@ class AdminDownloadModule {
             }
           }
         }
-        // حالت 3: محتویات مستقیماً بدون پوشه
+        // Mode 3: Contents directly without folder
         else {
-          logger.info('حالت 3: استخراج مستقیم محتویات بدون پوشه اصلی');
+          logger.info('Mode 3: Direct extraction of contents without main folder');
           
-          // اگر فقط یک پوشه در ریشه است و آن پوشه wrapper است
+          // If there's only one folder in root and it's a wrapper
           if (rootFolders.size === 1) {
             const singleRoot = Array.from(rootFolders)[0];
             const prefix = singleRoot + '/';
@@ -304,12 +304,12 @@ class AdminDownloadModule {
               }
             }
           } else {
-            // استخراج همه چیز مستقیماً
+            // Extract everything directly
             zip.extractAllTo(targetPath, true);
           }
         }
 
-        logger.info('بازیابی بک‌آپ موفقیت‌آمیز', { 
+        logger.info('Backup restored successfully', { 
           targetDirectory,
           extractedTo: targetPath,
           mode: hasTargetFolder ? 'direct' : (wrapperFolder ? 'wrapped' : 'plain')
@@ -317,12 +317,12 @@ class AdminDownloadModule {
 
         resolve({
           success: true,
-          message: 'بازیابی بک‌آپ با موفقیت انجام شد',
+          message: 'Backup restored successfully',
           extractedTo: targetPath
         });
 
       } catch (error) {
-        logger.error('خطا در بازیابی بک‌آپ', error, { targetDirectory });
+        logger.error('Error restoring backup', error, { targetDirectory });
         reject(error);
       }
     });
@@ -342,7 +342,7 @@ class AdminDownloadModule {
         compressedSize: entry.header.compressedSize
       }));
     } catch (error) {
-      logger.error('خطا در خواندن محتویات zip', error);
+      logger.error('Error reading zip contents', error);
       throw error;
     }
   }

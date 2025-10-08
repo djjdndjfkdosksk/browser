@@ -97,7 +97,7 @@ class ForgotPasswordModule {
       };
 
     } catch (error) {
-      logger.error('خطا در تأیید امنیتی', error, { username });
+      logger.error('Error in security verification', error, { username });
       return { success: false, error: 'Verification failed due to server error' };
     }
   }
@@ -150,7 +150,7 @@ class ForgotPasswordModule {
       }
 
     } catch (error) {
-      logger.error('خطا در بازیابی گذرواژه', error, { resetToken });
+      logger.error('Error in password recovery', error, { resetToken });
       return { success: false, error: 'Password reset failed due to server error' };
     }
   }
@@ -186,7 +186,7 @@ class ForgotPasswordModule {
       };
 
     } catch (error) {
-      logger.error('خطا در دریافت سوال امنیتی', error, { username });
+      logger.error('Error retrieving security question', error, { username });
       return { success: false, error: 'Failed to retrieve security question' };
     }
   }

@@ -75,10 +75,10 @@ class LoginModule {
   async logout(sessionId) {
     try {
       await security.destroySession(sessionId);
-      logger.auth('کاربر با موفقیت خروج کرد', { sessionId });
+      logger.auth('User logged out successfully', { sessionId });
       return { success: true, message: 'Logged out successfully' };
     } catch (error) {
-      logger.error('خطا در خروج', error, { sessionId });
+      logger.error('Error during logout', error, { sessionId });
       return { success: false, error: 'Logout failed' };
     }
   }

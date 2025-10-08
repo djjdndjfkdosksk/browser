@@ -64,7 +64,7 @@ class SecurityModule {
         salt: salt.toString('hex')
       };
     } catch (error) {
-      logger.error('خطا در رمزنگاری داده', error);
+      logger.error('Error encrypting data', error);
       throw error;
     }
   }
@@ -85,7 +85,7 @@ class SecurityModule {
       
       return decrypted;
     } catch (error) {
-      logger.error('خطا در رمزگشایی داده', error);
+      logger.error('Error decrypting data', error);
       return null;
     }
   }
@@ -102,11 +102,11 @@ class SecurityModule {
         VALUES (?, ?, ?, ?, ?, ?)
       `, [sessionId, userId, csrfToken, expiresAt.toISOString(), ipAddress, userAgent]);
       
-      logger.auth('جلسه جدید ایجاد شد', { userId, sessionId, ipAddress });
+      logger.auth('New session created', { userId, sessionId, ipAddress });
       
       return { sessionId, csrfToken };
     } catch (error) {
-      logger.error('خطا در ایجاد جلسه', error, { userId });
+      logger.error('Error creating session', error, { userId });
       throw error;
     }
   }
@@ -132,7 +132,7 @@ class SecurityModule {
       // Check if session expired
       if (now > expiresAt) {
         await this.destroySession(sessionId);
-        logger.security('جلسه منقضی شده حذف گردید', { sessionId });
+        logger.security('Expired session removed', { sessionId });
         return false;
       }
       
@@ -140,7 +140,7 @@ class SecurityModule {
       const inactivityTimeout = 30 * 60 * 1000; // 30 minutes
       if (now - lastActivity > inactivityTimeout) {
         await this.destroySession(sessionId);
-        logger.security('جلسه غیرفعال حذف گردید', { sessionId });
+        logger.security('Inactive session removed', { sessionId });
         return false;
       }
       
@@ -158,7 +158,7 @@ class SecurityModule {
         lastActivity: now.getTime()
       };
     } catch (error) {
-      logger.error('خطا در اعتبارسنجی جلسه', error, { sessionId });
+      logger.error('Error validating session', error, { sessionId });
       return false;
     }
   }
@@ -173,7 +173,7 @@ class SecurityModule {
       
       return result.rows.length > 0;
     } catch (error) {
-      logger.error('خطا در اعتبارسنجی CSRF توکن', error, { sessionId });
+      logger.error('Error validating CSRF token', error, { sessionId });
       return false;
     }
   }
@@ -186,10 +186,10 @@ class SecurityModule {
         WHERE session_id = ?
       `, [sessionId]);
       
-      logger.auth('جلسه با موفقیت حذف شد', { sessionId });
+      logger.auth('Session successfully destroyed', { sessionId });
       return true;
     } catch (error) {
-      logger.error('خطا در حذف جلسه', error, { sessionId });
+      logger.error('Error destroying session', error, { sessionId });
       return false;
     }
   }
@@ -202,10 +202,10 @@ class SecurityModule {
         WHERE user_id = ? AND is_active = 1
       `, [userId]);
       
-      logger.auth(`تمام جلسات کاربر حذف شد`, { userId, count: result.changes });
+      logger.auth(`All user sessions destroyed`, { userId, count: result.changes });
       return result.changes;
     } catch (error) {
-      logger.error('خطا در حذف جلسات کاربر', error, { userId });
+      logger.error('Error destroying user sessions', error, { userId });
       return 0;
     }
   }
@@ -213,7 +213,7 @@ class SecurityModule {
   // Enhanced input sanitization  
   sanitizeInput(input, options = {}) {
     if (typeof input !== 'string') {
-      logger.warn('ورودی غیر رشته‌ای برای پاکسازی', { inputType: typeof input });
+      logger.warn('Non-string input for sanitization', { inputType: typeof input });
       return '';
     }
     
@@ -245,7 +245,7 @@ class SecurityModule {
     
     for (const pattern of sqlPatterns) {
       if (pattern.test(sanitized)) {
-        logger.security('تلاش بالقوه SQL Injection شناسایی شد', { input: sanitized.substring(0, 50) });
+        logger.security('Potential SQL Injection attempt detected', { input: sanitized.substring(0, 50) });
         return '';
       }
     }
@@ -258,7 +258,7 @@ class SecurityModule {
     // Maximum length check
     const maxLength = options.maxLength || 1000;
     if (sanitized.length > maxLength) {
-      logger.warn(`ورودی طولانی کوتاه شد: ${sanitized.length} -> ${maxLength}`);
+      logger.warn(`Long input truncated: ${sanitized.length} -> ${maxLength}`);
       sanitized = sanitized.substring(0, maxLength);
     }
     
@@ -289,7 +289,7 @@ class SecurityModule {
   
   validateInput(input, type, options = {}) {
     if (!input) {
-      return { isValid: false, error: 'ورودی ضروری است' };
+      return { isValid: false, error: 'Input is required' };
     }
     
     const sanitized = this.sanitizeInput(input, options);
@@ -297,17 +297,17 @@ class SecurityModule {
     switch (type) {
       case 'username':
         if (!this.validateUsername(sanitized)) {
-          return { isValid: false, error: 'نام کاربری باید بین 3 تا 30 کاراکتر و فقط شامل حروف و اعداد باشد' };
+          return { isValid: false, error: 'Username must be between 3 and 30 characters and contain only letters and numbers' };
         }
         break;
       case 'email':
         if (!this.validateEmail(sanitized)) {
-          return { isValid: false, error: 'فرمت ایمیل نامعتبر است' };
+          return { isValid: false, error: 'Invalid email format' };
         }
         break;
       case 'password':
         if (!this.validatePasswordStrength(input)) { // Don't sanitize password
-          return { isValid: false, error: 'گذرواژه باید حداقل 8 کاراکتر با ترکیبی از حروف بزرگ، کوچک، اعداد و علائم خاص باشد' };
+          return { isValid: false, error: 'Password must be at least 8 characters with a combination of uppercase, lowercase, numbers and special characters' };
         }
         return { isValid: true, value: input }; // Return original password
       default:
@@ -340,7 +340,7 @@ class SecurityModule {
       `);
       
       if (result.changes > 0) {
-        logger.info(`پاکسازی جلسات: ${result.changes} جلسه منقضی حذف شد`);
+        logger.info(`Session cleanup: ${result.changes} expired sessions removed`);
       }
       
       // Delete old inactive sessions (older than 7 days)
@@ -351,10 +351,10 @@ class SecurityModule {
       `);
       
       if (deleteResult.changes > 0) {
-        logger.info(`حذف جلسات قدیمی: ${deleteResult.changes} جلسه حذف شد`);
+        logger.info(`Old sessions deleted: ${deleteResult.changes} sessions removed`);
       }
     } catch (error) {
-      logger.error('خطا در پاکسازی جلسات', error);
+      logger.error('Error cleaning up sessions', error);
     }
   }
   
@@ -374,7 +374,7 @@ class SecurityModule {
         totalSessions: totalResult.rows[0].count
       };
     } catch (error) {
-      logger.error('خطا در دریافت آمار جلسات', error);
+      logger.error('Error retrieving session statistics', error);
       return { activeSessions: 0, totalSessions: 0 };
     }
   }
@@ -382,10 +382,12 @@ class SecurityModule {
   // Security headers middleware
   securityHeaders(req, res, next) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
+    // X-Frame-Options removed to allow iframe embedding for public summary viewer
+    // res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
+    // CSP modified to allow iframe from any origin
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors *");
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');

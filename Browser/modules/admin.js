@@ -12,20 +12,20 @@ class AdminModule {
     }
   }
 
-  // تأیید رمز عبور ادمین
+  // Verify admin password
   async verifyAdminPassword(password) {
     try {
       return await bcrypt.compare(password, this.adminPasswordHash);
     } catch (error) {
-      logger.error('خطا در تأیید رمز عبور ادمین', error);
+      logger.error('Error verifying admin password', error);
       return false;
     }
   }
 
-  // دریافت آمار کامل دیتابیس
+  // Get complete database statistics
   async getDatabaseStats() {
     try {
-      // آمار کاربران
+      // User statistics
       const userStats = await database.query(`
         SELECT 
           COUNT(*) as total_users,
@@ -34,7 +34,7 @@ class AdminModule {
         FROM users
       `);
 
-      // آمار جلسات
+      // Session statistics
       const sessionStats = await database.query(`
         SELECT 
           COUNT(*) as total_sessions,
@@ -43,7 +43,7 @@ class AdminModule {
         FROM sessions
       `);
 
-      // آمار URL ها
+      // URL statistics
       const urlStats = await database.query(`
         SELECT 
           COUNT(*) as total_urls,
@@ -54,7 +54,7 @@ class AdminModule {
         FROM url_hashes
       `);
 
-      // آمار جستجوها
+      // Search statistics
       const searchStats = await database.query(`
         SELECT 
           COUNT(*) as total_searches,
@@ -63,7 +63,7 @@ class AdminModule {
         FROM searches
       `);
 
-      // آمار محتوا و خلاصه‌ها
+      // Content and summary statistics
       const contentStats = await database.query(`
         SELECT 
           COUNT(*) as total_requests,
@@ -73,7 +73,7 @@ class AdminModule {
         FROM user_crawl_requests
       `);
 
-      // آمار خلاصه‌ها
+      // Summary statistics
       const summaryStats = await database.query(`
         SELECT 
           COUNT(*) as total_summaries,
@@ -83,7 +83,7 @@ class AdminModule {
         FROM summaries
       `);
 
-      // آمار استفاده روزانه - استفاده از جدول searches برای محاسبه
+      // Daily usage statistics - using searches table for calculation
       const usageStats = await database.query(`
         SELECT 
           COUNT(DISTINCT user_id) as active_users_today,
@@ -93,7 +93,7 @@ class AdminModule {
         WHERE date(created_at) = date('now')
       `);
 
-      // حجم دیتابیس
+      // Database size
       const dbSize = await database.query(`
         SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()
       `);
@@ -113,12 +113,12 @@ class AdminModule {
         }
       };
     } catch (error) {
-      logger.error('خطا در دریافت آمار دیتابیس', error);
+      logger.error('Error retrieving database statistics', error);
       throw error;
     }
   }
 
-  // دریافت لیست کاربران با جزئیات
+  // Get users list with details
   async getUsersList() {
     try {
       const users = await database.query(`
@@ -141,12 +141,12 @@ class AdminModule {
 
       return users.rows;
     } catch (error) {
-      logger.error('خطا در دریافت لیست کاربران', error);
+      logger.error('Error retrieving users list', error);
       throw error;
     }
   }
 
-  // دریافت جزئیات سیستم
+  // Get system details
   async getSystemInfo() {
     try {
       const memoryUsage = process.memoryUsage();
@@ -174,12 +174,12 @@ class AdminModule {
         }
       };
     } catch (error) {
-      logger.error('خطا در دریافت اطلاعات سیستم', error);
+      logger.error('Error retrieving system information', error);
       throw error;
     }
   }
 
-  // فرمت کردن بایت ها
+  // Format bytes
   formatBytes(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -188,7 +188,7 @@ class AdminModule {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  // فرمت کردن زمان فعالیت
+  // Format uptime
   formatUptime(seconds) {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
@@ -198,7 +198,7 @@ class AdminModule {
     return `${days}d ${hours}h ${minutes}m ${secs}s`;
   }
 
-  // پاک سازی جلسات منقضی شده
+  // Cleanup expired sessions
   async cleanupExpiredSessions() {
     try {
       const result = await database.query(`
@@ -210,21 +210,21 @@ class AdminModule {
 
       return { cleaned: result.changes };
     } catch (error) {
-      logger.error('خطا در پاک سازی جلسات', error);
+      logger.error('Error cleaning up sessions', error);
       throw error;
     }
   }
 
-  // بهینه سازی دیتابیس
+  // Optimize database
   async optimizeDatabase() {
     try {
       await database.query('VACUUM');
       await database.query('ANALYZE');
       
-      logger.info('دیتابیس بهینه سازی شد');
+      logger.info('Database optimized successfully');
       return { success: true, message: 'Database optimized successfully' };
     } catch (error) {
-      logger.error('خطا در بهینه سازی دیتابیس', error);
+      logger.error('Error optimizing database', error);
       throw error;
     }
   }
