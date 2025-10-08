@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Verification</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="search-results.css">
+    <style>
+        .verification-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .verification-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .verification-header h1 {
+            color: #1a73e8;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            margin: 10px 0;
+        }
+
+        .status-verified {
+            background: #e6f4ea;
+            color: #1e8e3e;
+            border: 1px solid #34a853;
+        }
+
+        .status-pending {
+            background: #fef7e0;
+            color: #f9ab00;
+            border: 1px solid #fbbc04;
+        }
+
+        .status-unverified {
+            background: #fce8e6;
+            color: #c5221f;
+            border: 1px solid #ea4335;
+        }
+
+        .info-section {
+            background: rgba(66, 133, 244, 0.1);
+            border: 1px solid rgba(66, 133, 244, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-section h3 {
+            color: #1a73e8;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .dns-record {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .dns-record strong {
+            display: block;
+            color: #5f6368;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .dns-record code {
+            background: #f1f3f4;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: block;
+            word-break: break-all;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .copy-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .copy-btn {
+            background: #1a73e8;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            min-width: 40px;
+            height: 36px;
+        }
+
+        .copy-btn:hover {
+            background: #1557b0;
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        .copy-btn.copied {
+            background: #34a853;
+        }
+
+        .copy-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1557b0;
+        }
+
+        .btn-success {
+            background: #34a853;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #2d8e47;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .message.success {
+            background: #e6f4ea;
+            border: 1px solid #34a853;
+            color: #1e8e3e;
+        }
+
+        .message.error {
+            background: #fce8e6;
+            border: 1px solid #ea4335;
+            color: #c5221f;
+        }
+
+        .subdomain-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .subdomain-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .subdomain-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .subdomain-input-group {
+            display: flex;
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .subdomain-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .steps-guide {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .steps-guide ol {
+            padding-right: 20px;
+            line-height: 1.8;
+            color: #000;
+        }
+
+        .steps-guide li {
+            margin: 10px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9aa0a6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-header">
+            <div class="logo">
+                <span class="logo-sea">Za</span><span class="logo-search">Two</span>
+                <span class="logo-console" style="color: #666666; font-size: 0.67em;">Console</span>
+            </div>
+            <div class="user-section">
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleDropdown()">
+                        <span id="usernameDisplay"></span>
+                        <div class="user-avatar" id="userAvatar"></div>
+                    </div>
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        <a href="/" class="dropdown-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                            </svg>
+                            Home
+                        </a>
+                        <a href="/url-management" class="dropdown-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                <polyline points="13 2 13 9 20 9"></polyline>
+                            </svg>
+                            URL Management
+                        </a>
+                        <a href="/menu-customization" class="dropdown-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                            Menu Customization
+                        </a>
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="verification-container">
+            <div class="verification-header">
+                <h1>Domain Ownership Verification</h1>
+                <div id="domainDisplay" style="color: #000;"></div>
+                <div id="statusBadge"></div>
+            </div>
+
+            <div id="messageContainer"></div>
+            <div id="loadingContainer" class="loading">Loading...</div>
+
+            <div id="verificationContent" style="display: none;">
+                <!-- Unverified State -->
+                <div id="unverifiedSection" style="display: none;">
+                    <div class="info-section">
+                        <h3>Follow these steps to verify your domain:</h3>
+                        <div class="steps-guide">
+                            <ol>
+                                <li>Click the "Request Verification" button</li>
+                                <li>Receive the verification code and record name</li>
+                                <li>Log in to your domain DNS panel</li>
+                                <li>Create a TXT record with the provided details</li>
+                                <li>After creating the record, click "Check Verification"</li>
+                                <li>You have up to 48 hours to create the record</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="requestBtn" onclick="requestVerification()">Request Verification</button>
+                    </div>
+                </div>
+
+                <!-- Pending State -->
+                <div id="pendingSection" style="display: none;">
+                    <div class="info-section">
+                        <h3>Create the DNS record in your domain panel:</h3>
+                        <div class="dns-record">
+                            <strong>Record Name:</strong>
+                            <div class="copy-container">
+                                <code id="recordName" style="flex: 1;"></code>
+                                <button class="copy-btn" onclick="copyToClipboard('recordName', this)" title="Copy">
+                                    <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="dns-record">
+                            <strong>Type:</strong>
+                            <div class="copy-container">
+                                <code style="flex: 1;">TXT</code>
+                                <button class="copy-btn" onclick="copyText('TXT', this)" title="Copy">
+                                    <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="dns-record">
+                            <strong>Value:</strong>
+                            <div class="copy-container">
+                                <code id="recordValue" style="flex: 1;"></code>
+                                <button class="copy-btn" onclick="copyToClipboard('recordValue', this)" title="Copy">
+                                    <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="dns-record">
+                            <strong>Expires At:</strong>
+                            <code id="expiresAt"></code>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-success" id="verifyBtn" onclick="verifyDomain()">Check Verification</button>
+                        <button class="btn btn-primary" onclick="stopAutomaticVerification(); window.location.href='/'">Back</button>
+                    </div>
+                    <p style="text-align: center; color: #9aa0a6; margin-top: 15px; font-size: 13px;">
+                        Auto-check: First 2 min every 10s, then every 5 min until verified or expired
+                    </p>
+                </div>
+
+                <!-- Verified State -->
+                <div id="verifiedSection" style="display: none;">
+                    <div class="info-section">
+                        <h3>Your domain has been successfully verified!</h3>
+                        <p style="color: #000; margin-top: 10px;">You can now use all features and add your subdomains.</p>
+                    </div>
+
+                    <div class="subdomain-section">
+                        <h3 style="color: #1a73e8; margin-bottom: 15px;">Subdomain Management</h3>
+                        <div class="subdomain-input-group">
+                            <input type="text" id="subdomainInput" placeholder="Enter subdomain (must belong to your domain)">
+                            <button class="btn btn-primary" onclick="addSubdomain()">Add</button>
+                        </div>
+                        <p style="color: #000; font-size: 12px; margin: 5px 0 15px 0;">
+                            Example: If your domain is example.com, enter subdomains like blog.example.com or shop.example.com
+                        </p>
+                        <ul class="subdomain-list" id="subdomainList"></ul>
+                    </div>
+
+                    <div class="button-group" style="margin-top: 30px;">
+                        <button class="btn btn-primary" onclick="window.location.href='/menu-customization'">Menu Customization</button>
+                        <button class="btn" style="background: #f8f9fa; color: #5f6368;" onclick="window.location.href='/'">Back</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        let verificationData = null;
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/profile', {
+                    headers: {
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.user) {
+                        document.getElementById('usernameDisplay').textContent = data.user.username;
+                        document.getElementById('userAvatar').textContent = data.user.username.charAt(0).toUpperCase();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+
+        async function loadVerificationStatus() {
+            try {
+                const response = await fetch('/api/domain/status', {
+                    headers: {
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    verificationData = data;
+                    document.getElementById('domainDisplay').innerHTML = `<p style="color: #000; margin-top: 10px;">Domain: <strong style="color: #000;">${data.domain}</strong></p>`;
+
+                    document.getElementById('loadingContainer').style.display = 'none';
+                    document.getElementById('verificationContent').style.display = 'block';
+
+                    if (data.verificationStatus === 'verified') {
+                        showVerifiedState(data);
+                    } else if (data.activeVerification && data.activeVerification.status === 'pending') {
+                        showPendingState(data.activeVerification);
+                    } else {
+                        showUnverifiedState();
+                    }
+                } else {
+                    showMessage(data.error || 'Error loading status', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading verification status:', error);
+                showMessage('Error loading status', 'error');
+            }
+        }
+
+        function showUnverifiedState() {
+            document.getElementById('statusBadge').innerHTML = '<span class="status-badge status-unverified">Unverified</span>';
+            document.getElementById('unverifiedSection').style.display = 'block';
+            document.getElementById('pendingSection').style.display = 'none';
+            document.getElementById('verifiedSection').style.display = 'none';
+        }
+
+        function showPendingState(verification) {
+            document.getElementById('statusBadge').innerHTML = '<span class="status-badge status-pending">Pending Verification</span>';
+            document.getElementById('unverifiedSection').style.display = 'none';
+            document.getElementById('pendingSection').style.display = 'block';
+            document.getElementById('verifiedSection').style.display = 'none';
+
+            document.getElementById('recordName').textContent = verification.txt_record_name;
+            document.getElementById('recordValue').textContent = verification.verification_token;
+
+            const expiresDate = new Date(verification.expires_at);
+            document.getElementById('expiresAt').textContent = expiresDate.toLocaleString('en-US');
+        }
+
+        function showVerifiedState(data) {
+            document.getElementById('statusBadge').innerHTML = '<span class="status-badge status-verified">Verified</span>';
+            document.getElementById('unverifiedSection').style.display = 'none';
+            document.getElementById('pendingSection').style.display = 'none';
+            document.getElementById('verifiedSection').style.display = 'block';
+
+            renderSubdomains(data.subdomains || []);
+        }
+
+        function renderSubdomains(subdomains) {
+            const list = document.getElementById('subdomainList');
+            list.innerHTML = '';
+
+            if (subdomains.length === 0) {
+                list.innerHTML = '<li style="color: #9aa0a6; text-align: center; padding: 20px;">No subdomains added</li>';
+                return;
+            }
+
+            subdomains.forEach(subdomain => {
+                const li = document.createElement('li');
+                li.className = 'subdomain-item';
+                li.innerHTML = `
+                    <span style="color: #e8eaed;">${subdomain}</span>
+                    <button class="btn btn-small" style="background: #fef0f0; color: #dc2626; border: 1px solid #fecaca;" onclick="removeSubdomain('${subdomain}')">Remove</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        async function requestVerification() {
+            const btn = document.getElementById('requestBtn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/api/domain/request-verification', {
+                    method: 'POST',
+                    headers: {
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('Verification request created', 'success');
+                    setTimeout(() => loadVerificationStatus(), 1000);
+                } else {
+                    showMessage(data.error || 'Error creating request', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Request Verification';
+                }
+            } catch (error) {
+                console.error('Error requesting verification:', error);
+                showMessage('Error creating request', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Request Verification';
+            }
+        }
+
+        let verificationInterval = null;
+        let verificationStartTime = null;
+
+        async function verifyDomain() {
+            const btn = document.getElementById('verifyBtn');
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+
+            // Start automatic verification process
+            startAutomaticVerification();
+
+            try {
+                const response = await fetch('/api/domain/verify', {
+                    method: 'POST',
+                    headers: {
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    stopAutomaticVerification();
+                    showMessage(data.message || 'Domain successfully verified!', 'success');
+                    setTimeout(() => loadVerificationStatus(), 1500);
+                } else {
+                    showMessage(data.error || 'TXT record not found. Auto-checking started...', 'error');
+                    btn.disabled = true;
+                    btn.textContent = 'Auto-checking...';
+                }
+            } catch (error) {
+                console.error('Error verifying domain:', error);
+                showMessage('Error checking verification', 'error');
+                stopAutomaticVerification();
+                btn.disabled = false;
+                btn.textContent = 'Check Verification';
+            }
+        }
+
+        function startAutomaticVerification() {
+            stopAutomaticVerification(); // Clear any existing interval
+            
+            verificationStartTime = Date.now();
+            const btn = document.getElementById('verifyBtn');
+            
+            // First 2 minutes: check every 10 seconds
+            const firstPhaseInterval = 10 * 1000; // 10 seconds
+            const firstPhaseDuration = 2 * 60 * 1000; // 2 minutes
+            
+            // After 2 minutes: check every 5 minutes
+            const secondPhaseInterval = 5 * 60 * 1000; // 5 minutes
+            
+            let currentInterval = firstPhaseInterval;
+            
+            const checkAndSchedule = async () => {
+                const elapsed = Date.now() - verificationStartTime;
+                
+                // Check if verification request has expired (48 hours)
+                if (verificationData && verificationData.activeVerification) {
+                    const expiresAt = new Date(verificationData.activeVerification.expires_at);
+                    if (expiresAt < new Date()) {
+                        stopAutomaticVerification();
+                        showMessage('Verification time expired. Please create a new request.', 'error');
+                        btn.disabled = false;
+                        btn.textContent = 'Check Verification';
+                        return;
+                    }
+                }
+                
+                // Switch to second phase after 2 minutes
+                if (elapsed > firstPhaseDuration && currentInterval === firstPhaseInterval) {
+                    currentInterval = secondPhaseInterval;
+                    stopAutomaticVerification();
+                    verificationInterval = setInterval(checkAndSchedule, currentInterval);
+                    console.log('Switched to 5-minute interval checks');
+                }
+                
+                // Perform verification check
+                try {
+                    const response = await fetch('/api/domain/verify', {
+                        method: 'POST',
+                        headers: {
+                            'x-session-id': localStorage.getItem('sessionId'),
+                            'x-csrf-token': localStorage.getItem('csrfToken')
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        stopAutomaticVerification();
+                        showMessage(data.message || 'Domain successfully verified!', 'success');
+                        setTimeout(() => loadVerificationStatus(), 1500);
+                    } else {
+                        // Update button text with remaining time
+                        const nextCheck = currentInterval === firstPhaseInterval ? 10 : 300;
+                        btn.textContent = `Auto-checking... (next in ${nextCheck}s)`;
+                    }
+                } catch (error) {
+                    console.error('Auto-verification check failed:', error);
+                }
+            };
+            
+            // Start interval
+            verificationInterval = setInterval(checkAndSchedule, currentInterval);
+            console.log('Started automatic verification with 10-second interval for first 2 minutes');
+        }
+
+        function stopAutomaticVerification() {
+            if (verificationInterval) {
+                clearInterval(verificationInterval);
+                verificationInterval = null;
+                verificationStartTime = null;
+                console.log('Stopped automatic verification');
+            }
+        }
+
+        // Stop verification when navigating away
+        window.addEventListener('beforeunload', () => {
+            stopAutomaticVerification();
+        });
+
+        async function addSubdomain() {
+            const input = document.getElementById('subdomainInput');
+            const subdomain = input.value.trim();
+
+            if (!subdomain) {
+                showMessage('Please enter a subdomain', 'error');
+                return;
+            }
+
+            // Frontend validation
+            if (!verificationData || !verificationData.domain) {
+                showMessage('Main domain not found', 'error');
+                return;
+            }
+
+            const mainDomain = verificationData.domain.replace(/^https?:\/\//, '').replace(/^www\./, '');
+            const cleanSubdomain = subdomain.replace(/^https?:\/\//, '').replace(/^www\./, '');
+
+            // Check if subdomain belongs to main domain
+            if (!cleanSubdomain.endsWith('.' + mainDomain) && cleanSubdomain !== mainDomain) {
+                showMessage(`Subdomain must belong to your domain (${mainDomain})`, 'error');
+                return;
+            }
+
+            // Check subdomain format
+            const subdomainRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+            if (!subdomainRegex.test(cleanSubdomain)) {
+                showMessage('Invalid subdomain format', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/domain/subdomain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    },
+                    body: JSON.stringify({ subdomain: cleanSubdomain })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(data.message || 'Subdomain added', 'success');
+                    input.value = '';
+                    loadVerificationStatus();
+                } else {
+                    showMessage(data.error || 'Error adding subdomain', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding subdomain:', error);
+                showMessage('Error adding subdomain', 'error');
+            }
+        }
+
+        async function removeSubdomain(subdomain) {
+            if (!confirm(`Are you sure you want to remove "${subdomain}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/domain/subdomain/${encodeURIComponent(subdomain)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(data.message || 'Subdomain removed', 'success');
+                    loadVerificationStatus();
+                } else {
+                    showMessage(data.error || 'Error removing subdomain', 'error');
+                }
+            } catch (error) {
+                console.error('Error removing subdomain:', error);
+                showMessage('Error removing subdomain', 'error');
+            }
+        }
+
+        function copyToClipboard(elementId, button) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalHTML = button.innerHTML;
+                button.classList.add('copied');
+                button.innerHTML = `<svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>`;
+                
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                    button.innerHTML = originalHTML;
+                }, 2000);
+            }).catch(err => {
+                showMessage('Failed to copy', 'error');
+            });
+        }
+
+        function copyText(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalHTML = button.innerHTML;
+                button.classList.add('copied');
+                button.innerHTML = `<svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>`;
+                
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                    button.innerHTML = originalHTML;
+                }, 2000);
+            }).catch(err => {
+                showMessage('Failed to copy', 'error');
+            });
+        }
+
+        function showMessage(text, type) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="message ${type}">${text}</div>`;
+
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login.html';
+        }
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.matches('.user-info') && !e.target.closest('.user-info')) {
+                const dropdown = document.getElementById('dropdownMenu');
+                dropdown.classList.remove('show');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!checkAuthentication()) {
+                window.location.href = '/login.html';
+                return;
+            }
+            loadUserInfo();
+            loadVerificationStatus();
+        });
+    </script>
+</body>
+</html>

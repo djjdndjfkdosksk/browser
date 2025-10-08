@@ -161,7 +161,7 @@ class SummaryManager {
         }
     }
 
-    // Display summaries with markdown conversion and collapsible sections
+    // Display summaries with links to public pages
     displaySummaries(summaries) {
         const summariesContainer = document.getElementById('summariesContainer');
         if (!summariesContainer) return;
@@ -170,24 +170,37 @@ class SummaryManager {
 
         summaries.forEach((summary, index) => {
             if (summary.summary) {
-                const summaryId = `summary-${index}`;
                 const mainTitle = this.extractMainTitle(summary.summary);
                 const shortTitle = this.truncateTitle(mainTitle);
                 const escapedUrl = this.escapeHtml(summary.originalUrl);
                 const escapedTitle = this.escapeHtml(shortTitle);
+                
+                // Create public summary link by removing protocol
+                const publicPath = summary.originalUrl.replace(/^https?:\/\//, '');
+                const summaryLink = `/${publicPath}`;
 
                 html += `
                     <div class="summary-item">
-                        <div class="summary-header" onclick="window.summaryManager.toggleSummary('${summaryId}')">
+                        <div class="summary-link-container">
                             <div class="summary-title">
                                 <span class="summary-url-title">${escapedTitle}</span>
-                                <span class="toggle-icon" id="icon-${summaryId}">+</span>
                             </div>
-                        </div>
-                        <div class="summary-content" id="${summaryId}" style="display: none;">
-                            ${this.markdownToHtml(summary.summary)}
-                            <div class="summary-source">
-                                <strong>Source:</strong> <a href="${escapedUrl}" target="_blank" rel="noopener noreferrer">${escapedUrl}</a>
+                            <div class="summary-actions">
+                                <a href="${summaryLink}" target="_blank" class="view-summary-btn" title="View full summary">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                    </svg>
+                                    View Summary
+                                </a>
+                                <a href="${escapedUrl}" target="_blank" class="source-link-btn" title="View original source">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                    </svg>
+                                    Source
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -200,56 +213,6 @@ class SummaryManager {
         }
 
         summariesContainer.innerHTML = html;
-    }
-
-    // Toggle individual summary display
-    toggleSummary(summaryId) {
-        if (!summaryId || typeof summaryId !== 'string') return;
-
-        const content = document.getElementById(summaryId);
-        const icon = document.getElementById(`icon-${summaryId}`);
-
-        if (!content || !icon) return;
-
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            icon.textContent = '-';
-        } else {
-            content.style.display = 'none';
-            icon.textContent = '+';
-        }
-    }
-
-    // Safe markdown to HTML converter with sanitization
-    markdownToHtml(markdown) {
-        if (!markdown || typeof markdown !== 'string') return '';
-
-        // First escape HTML to prevent XSS
-        let html = this.escapeHtml(markdown);
-
-        // Convert headers (after escaping)
-        html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-        html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-        html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-        // Convert bullet points with single asterisk (must be before bold conversion)
-        html = html.replace(/^\* (.*$)/gim, '<li>$1</li>');
-        html = html.replace(/^\- (.*$)/gim, '<li>$1</li>');
-
-        // Convert bold (double asterisk)
-        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-        // Wrap lists
-        html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
-
-        // Convert line breaks
-        html = html.replace(/\n\n/g, '</p><p>');
-        html = html.replace(/\n/g, '<br>');
-
-        // Wrap in paragraphs
-        html = '<p>' + html + '</p>';
-
-        return html;
     }
 
     // Utility functions

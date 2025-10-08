@@ -1,0 +1,630 @@
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu Customization</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="search-results.css">
+    <style>
+        .customization-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 2px 5px 1px rgba(64,60,67,.16);
+            backdrop-filter: blur(10px);
+        }
+
+        .customization-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .customization-header h1 {
+            color: #1a73e8;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .customization-header p {
+            color: #000;
+            font-size: 14px;
+        }
+
+        .menu-items-list {
+            margin-bottom: 30px;
+        }
+
+        .menu-item-row {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item-row:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .drag-handle {
+            cursor: move;
+            color: #5f6368;
+            font-size: 20px;
+            padding: 8px;
+            user-select: none;
+        }
+
+        .menu-item-row.dragging {
+            opacity: 0.5;
+        }
+
+        .item-number {
+            width: 30px;
+            height: 30px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .item-inputs {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+
+        .input-wrapper {
+            width: 100%;
+        }
+
+        .item-inputs input {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #333;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .item-inputs input:focus {
+            outline: none;
+            background: white;
+            border-color: #4285f4;
+        }
+
+        .item-inputs input::placeholder {
+            color: #9aa0a6;
+        }
+
+        .char-counter {
+            font-size: 11px;
+            color: #5f6368;
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .char-counter.warning {
+            color: #f59e0b;
+        }
+
+        .char-counter.error {
+            color: #ef4444;
+        }
+
+        .remove-btn {
+            background: #fef0f0;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .remove-btn:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        .add-item-btn {
+            background: #e8f0fe;
+            border: 1px solid #4285f4;
+            color: #1a73e8;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .add-item-btn:hover:not(:disabled) {
+            background: #d2e3fc;
+            border-color: #1a73e8;
+        }
+
+        .add-item-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .save-btn, .cancel-btn, .preview-btn {
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-btn {
+            background: #34a853;
+            border: 1px solid #34a853;
+            color: white;
+        }
+
+        .save-btn:hover:not(:disabled) {
+            background: #2d8e47;
+            border-color: #2d8e47;
+        }
+
+        .save-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .cancel-btn {
+            background: #f8f9fa;
+            border: 1px solid #dadce0;
+            color: #5f6368;
+        }
+
+        .cancel-btn:hover {
+            background: #f1f3f4;
+            border-color: #d0d0d0;
+        }
+
+        .preview-btn {
+            background: #4285f4;
+            border: 1px solid #4285f4;
+            color: white;
+        }
+
+        .preview-btn:hover {
+            background: #3367d6;
+            border-color: #3367d6;
+        }
+
+        .message {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .message.success {
+            background: #e6f4ea;
+            border: 1px solid #34a853;
+            color: #1e8e3e;
+        }
+
+        .message.error {
+            background: #fce8e6;
+            border: 1px solid #ea4335;
+            color: #c5221f;
+        }
+
+        .info-box {
+            background: rgba(66, 133, 244, 0.1);
+            border: 1px solid rgba(66, 133, 244, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h3 {
+            color: #1a73e8;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .info-box ul {
+            color: #000;
+            font-size: 13px;
+            line-height: 1.6;
+            padding-left: 20px;
+        }
+
+        .info-box li {
+            margin-bottom: 4px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-header">
+            <div class="logo">
+                <span class="logo-sea">Za</span><span class="logo-search">Two</span>
+                <span class="logo-console" style="color: #666666; font-size: 0.67em;">Console</span>
+            </div>
+            <div class="user-section">
+                <div class="user-dropdown">
+                    <div class="user-info" onclick="toggleDropdown()">
+                        <span id="usernameDisplay"></span>
+                        <div class="user-avatar" id="userAvatar"></div>
+                    </div>
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        <a href="/" class="dropdown-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                            </svg>
+                            Home
+                        </a>
+                        <a href="/url-management" class="dropdown-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                <polyline points="13 2 13 9 20 9"></polyline>
+                            </svg>
+                            URL Management
+                        </a>
+                        <a href="/domain-verification" class="dropdown-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            Domain Verification
+                        </a>
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="customization-container">
+            <div class="customization-header">
+                <h1>Domain Menu Customization</h1>
+                <p>Define up to 10 menu items for your domain pages</p>
+            </div>
+
+            <div class="info-box">
+                <h3>Guide</h3>
+                <ul>
+                    <li>Maximum 10 menu items allowed</li>
+                    <li>Each button text is limited to 25 characters</li>
+                    <li>Drag the ☰ handle to reorder items</li>
+                    <li>Your items will be displayed on all domain summary pages</li>
+                </ul>
+            </div>
+
+            <div id="messageContainer"></div>
+            <div id="loadingContainer" class="loading">Loading menu items...</div>
+            
+            <div id="menuItemsContainer" style="display: none;">
+                <div class="menu-items-list" id="menuItemsList"></div>
+                
+                <button class="add-item-btn" id="addItemBtn" onclick="addMenuItem()">
+                    Add New Item
+                </button>
+
+                <div class="action-buttons">
+                    <button class="save-btn" id="saveBtn" onclick="saveMenuItems()">Save Changes</button>
+                    <button class="cancel-btn" onclick="window.location.href='/'">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        let menuItems = [];
+        let draggedElement = null;
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/profile', {
+                    headers: {
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.user) {
+                        document.getElementById('usernameDisplay').textContent = data.user.username;
+                        document.getElementById('userAvatar').textContent = data.user.username.charAt(0).toUpperCase();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+            }
+        }
+
+        async function loadMenuItems() {
+            try {
+                const sessionId = localStorage.getItem('sessionId');
+                const csrfToken = localStorage.getItem('csrfToken');
+
+                if (!sessionId || !csrfToken) {
+                    showMessage('Authentication required. Please log in.', 'error');
+                    setTimeout(() => window.location.href = '/login.html', 1500);
+                    return;
+                }
+
+                const response = await fetch('/api/menu-items', {
+                    headers: {
+                        'x-session-id': sessionId,
+                        'x-csrf-token': csrfToken
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.status === 403 && data.verified === false) {
+                    showMessage(data.message || 'To access this feature, you must first verify your domain', 'error');
+                    setTimeout(() => window.location.href = '/domain-verification', 2000);
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to load menu items');
+                }
+                
+                if (data.success) {
+                    menuItems = data.items || [];
+                    renderMenuItems();
+                    document.getElementById('loadingContainer').style.display = 'none';
+                    document.getElementById('menuItemsContainer').style.display = 'block';
+                } else {
+                    showMessage(data.error || 'Error loading menu items', 'error');
+                    document.getElementById('loadingContainer').style.display = 'none';
+                    document.getElementById('menuItemsContainer').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading menu items:', error);
+                showMessage('Error loading menu items: ' + error.message, 'error');
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('menuItemsContainer').style.display = 'block';
+            }
+        }
+
+        function renderMenuItems() {
+            const container = document.getElementById('menuItemsList');
+            const addBtn = document.getElementById('addItemBtn');
+            
+            container.innerHTML = '';
+            
+            menuItems.forEach((item, index) => {
+                const row = createMenuItemRow(item, index);
+                container.appendChild(row);
+            });
+
+            addBtn.disabled = menuItems.length >= 10;
+        }
+
+        function createMenuItemRow(item, index) {
+            const div = document.createElement('div');
+            div.className = 'menu-item-row';
+            div.draggable = true;
+            div.dataset.index = index;
+
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+            div.addEventListener('dragover', handleDragOver);
+            div.addEventListener('drop', handleDrop);
+
+            const textLength = item.text ? item.text.length : 0;
+            const charClass = textLength > 20 ? 'error' : textLength > 15 ? 'warning' : '';
+
+            div.innerHTML = `
+                <div class="drag-handle">☰</div>
+                <div class="item-number">${index + 1}</div>
+                <div class="item-inputs">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            placeholder="Button text (e.g., Home)" 
+                            value="${item.text || ''}" 
+                            maxlength="25"
+                            data-index="${index}"
+                            data-field="text"
+                            class="menu-text-input"
+                        >
+                        <div class="char-counter ${charClass}">${textLength}/25</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            placeholder="Link (e.g., https://example.com)" 
+                            value="${item.url || ''}" 
+                            maxlength="500"
+                            data-index="${index}"
+                            data-field="url"
+                            class="menu-url-input"
+                        >
+                    </div>
+                </div>
+                <button class="remove-btn" onclick="removeMenuItem(${index})" title="Remove">×</button>
+            `;
+
+            const textInput = div.querySelector('.menu-text-input');
+            const urlInput = div.querySelector('.menu-url-input');
+
+            textInput.addEventListener('input', function(e) {
+                const value = e.target.value;
+                const index = parseInt(e.target.dataset.index);
+                menuItems[index].text = value;
+                
+                const counter = e.target.parentElement.querySelector('.char-counter');
+                const length = value.length;
+                counter.textContent = `${length}/25`;
+                counter.className = 'char-counter';
+                if (length > 20) counter.classList.add('error');
+                else if (length > 15) counter.classList.add('warning');
+            });
+
+            urlInput.addEventListener('input', function(e) {
+                const value = e.target.value;
+                const index = parseInt(e.target.dataset.index);
+                menuItems[index].url = value;
+            });
+
+            return div;
+        }
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            
+            if (!draggedElement) return;
+            
+            const dropTarget = e.target.closest('.menu-item-row');
+            if (!dropTarget || dropTarget === draggedElement) return;
+
+            const draggedIndex = parseInt(draggedElement.dataset.index);
+            const dropIndex = parseInt(dropTarget.dataset.index);
+
+            const [removed] = menuItems.splice(draggedIndex, 1);
+            menuItems.splice(dropIndex, 0, removed);
+
+            renderMenuItems();
+        }
+
+        function addMenuItem() {
+            if (menuItems.length >= 10) {
+                showMessage('Maximum 10 items allowed', 'error');
+                return;
+            }
+
+            menuItems.push({ text: '', url: '' });
+            renderMenuItems();
+        }
+
+        function removeMenuItem(index) {
+            menuItems.splice(index, 1);
+            renderMenuItems();
+        }
+
+        async function saveMenuItems() {
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            const validItems = menuItems.filter(item => item.text.trim() && item.url.trim());
+
+            try {
+                const response = await fetch('/api/menu-items', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-session-id': localStorage.getItem('sessionId'),
+                        'x-csrf-token': localStorage.getItem('csrfToken')
+                    },
+                    body: JSON.stringify({ items: validItems })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('Changes saved successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1500);
+                } else {
+                    showMessage(data.error || 'Error saving changes', 'error');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Changes';
+                }
+            } catch (error) {
+                console.error('Error saving menu items:', error);
+                showMessage('Error saving changes', 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Changes';
+            }
+        }
+
+        function showMessage(text, type) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="message ${type}">${text}</div>`;
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login.html';
+        }
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.matches('.user-info') && !e.target.closest('.user-info')) {
+                const dropdown = document.getElementById('dropdownMenu');
+                dropdown.classList.remove('show');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserInfo();
+            loadMenuItems();
+        });
+    </script>
+</body>
+</html>

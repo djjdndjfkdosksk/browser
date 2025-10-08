@@ -1,0 +1,768 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - ZaTwo AI Summarization System</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .docs-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            margin: 40px auto;
+            max-width: 1000px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 36px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        h1 svg {
+            stroke: #ffffff;
+        }
+
+        .subtitle {
+            color: #000;
+            font-size: 18px;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        h2 {
+            color: #1a73e8;
+            font-size: 28px;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #1a73e8;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h3 {
+            color: #333;
+            font-size: 22px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h4 {
+            color: #1a73e8;
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        p {
+            color: #000;
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+
+        .info-box {
+            background: rgba(66, 133, 244, 0.08);
+            border-left: 4px solid #1a73e8;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 6px;
+        }
+
+        .info-box h3 {
+            color: #1a73e8;
+            margin-top: 0;
+        }
+
+        .warning-box {
+            background: rgba(251, 188, 4, 0.08);
+            border-left: 4px solid #fbbc04;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 6px;
+        }
+
+        .warning-box h3 {
+            color: #f9ab00;
+            margin-top: 0;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            color: #d4d4d4;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .code-keyword {
+            color: #569cd6;
+        }
+
+        .code-string {
+            color: #ce9178;
+        }
+
+        .code-comment {
+            color: #6a9955;
+        }
+
+        .code-function {
+            color: #dcdcaa;
+        }
+
+        .code-tag {
+            color: #4ec9b0;
+        }
+
+        .code-attribute {
+            color: #9cdcfe;
+        }
+
+        .code-value {
+            color: #ce9178;
+        }
+
+        .code-inline {
+            background: rgba(66, 133, 244, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            color: #1a73e8;
+            word-break: break-word;
+        }
+
+        ol, ul {
+            margin: 20px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin-bottom: 10px;
+            color: #000;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature-item {
+            background: rgba(52, 168, 83, 0.08);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #34a853;
+        }
+
+        .feature-item h4 {
+            color: #34a853;
+            margin-bottom: 10px;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a73e8;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .icon {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .icon-sm {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .back-btn {
+            background: #1a73e8;
+            color: white;
+            padding: 12px 28px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background 0.3s;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            background: #1557b0;
+        }
+
+        @media (max-width: 1024px) {
+            .docs-container {
+                padding: 35px;
+                margin: 30px auto;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+
+            h2 {
+                font-size: 26px;
+            }
+
+            h3 {
+                font-size: 20px;
+            }
+
+            .feature-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .docs-container {
+                padding: 25px 20px;
+                margin: 20px auto;
+            }
+
+            h1 {
+                font-size: 28px;
+                gap: 12px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+            }
+
+            h2 {
+                font-size: 24px;
+                gap: 10px;
+            }
+
+            h3 {
+                font-size: 18px;
+            }
+
+            h4 {
+                font-size: 16px;
+            }
+
+            p {
+                font-size: 15px;
+            }
+
+            .code-block {
+                padding: 15px;
+                margin: 15px 0;
+            }
+
+            .code-block pre {
+                font-size: 13px;
+            }
+
+            .code-inline {
+                font-size: 13px;
+                padding: 2px 6px;
+            }
+
+            .info-box, .warning-box {
+                padding: 15px;
+                margin: 20px 0;
+            }
+
+            ol, ul {
+                padding-left: 25px;
+            }
+
+            .icon {
+                width: 24px;
+                height: 24px;
+            }
+
+            .icon-sm {
+                width: 16px;
+                height: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .docs-container {
+                padding: 20px 15px;
+                margin: 15px 10px;
+                border-radius: 12px;
+            }
+
+            h1 {
+                font-size: 24px;
+                gap: 8px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .subtitle {
+                font-size: 14px;
+                margin-bottom: 30px;
+            }
+
+            h2 {
+                font-size: 20px;
+                margin-top: 35px;
+                gap: 8px;
+            }
+
+            h3 {
+                font-size: 17px;
+            }
+
+            h4 {
+                font-size: 15px;
+            }
+
+            p {
+                font-size: 14px;
+            }
+
+            .code-block {
+                padding: 12px;
+                margin: 12px 0;
+                border-radius: 6px;
+            }
+
+            .code-block pre {
+                font-size: 12px;
+                line-height: 1.5;
+            }
+
+            .code-inline {
+                font-size: 12px;
+                padding: 2px 5px;
+            }
+
+            .info-box, .warning-box {
+                padding: 12px;
+                margin: 15px 0;
+            }
+
+            .feature-item {
+                padding: 15px;
+            }
+
+            .step-number {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+            }
+
+            .back-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            ol, ul {
+                padding-left: 20px;
+            }
+
+            li {
+                font-size: 14px;
+            }
+
+            .icon {
+                width: 20px;
+                height: 20px;
+            }
+
+            .icon-sm {
+                width: 14px;
+                height: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <a href="/" class="logo" style="text-decoration: none;">
+                <span class="logo-sea">Za</span><span class="logo-search">Two</span>
+            </a>
+            <a href="/" class="back-btn">Back to Home</a>
+        </header>
+
+        <div class="docs-container">
+            <h1>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                Documentation
+            </h1>
+            <p class="subtitle">Complete guide to implementing AI-powered summaries on your website</p>
+
+            <h2 style="color: #ffffff;">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 16v-4"></path>
+                    <path d="M12 8h.01"></path>
+                </svg>
+                What is ZaTwo?
+            </h2>
+            <p>ZaTwo is an AI-powered content summarization system that helps website owners provide concise, digestible summaries of their content. Instead of overwhelming visitors with lengthy SEO-optimized articles, you can offer instant summaries that keep users engaged.</p>
+
+            <div class="info-box">
+                <h3 style="color: #ffffff;">
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                    </svg>
+                    Key Benefits
+                </h3>
+                <ul>
+                    <li><strong>Automatic Summarization:</strong> AI generates summaries when users visit your pages</li>
+                    <li><strong>Zero Configuration:</strong> Just verify your domain and start using</li>
+                    <li><strong>Instant Results:</strong> Summaries generated in ~5 seconds on first request</li>
+                    <li><strong>SEO Friendly:</strong> Keep your original content while providing summaries</li>
+                </ul>
+            </div>
+
+            <h2>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                Getting Started
+            </h2>
+            
+            <h3><span class="step-number">1</span>Create an Account</h3>
+            <p>Visit the <a href="/register" style="color: #1a73e8;">registration page</a> and create your account with your domain name.</p>
+
+            <h3><span class="step-number">2</span>Verify Your Domain</h3>
+            <p>To enable automatic summarization, you need to verify domain ownership:</p>
+            <ol>
+                <li>Go to the <strong>Domain Verification</strong> section in your dashboard</li>
+                <li>Click <strong>"Request Verification"</strong> to get your unique TXT record</li>
+                <li>Add the TXT record to your domain's DNS settings:
+                    <div class="code-block">
+                        <pre><span class="code-attribute">Type</span>: <span class="code-string">TXT</span>
+<span class="code-attribute">Name</span>: <span class="code-string">_domain-verification.yourdomain.com</span>
+<span class="code-attribute">Value</span>: <span class="code-string">[your-unique-token]</span></pre>
+                    </div>
+                </li>
+                <li>Click <strong>"Verify Domain"</strong> to complete the process</li>
+            </ol>
+
+            <div class="warning-box">
+                <h3>
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#f9ab00" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    Important
+                </h3>
+                <p><strong>Automatic summarization only works for verified domains.</strong> Without verification, you'll need to manually submit URLs for summarization.</p>
+            </div>
+
+            <h3><span class="step-number">3</span>Implement the Summary Viewer</h3>
+            <p>Add the following code to your website to display summaries:</p>
+
+            <h4>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+                HTML Implementation
+            </h4>
+            <div class="code-block">
+                <pre><span class="code-tag">&lt;!DOCTYPE html&gt;</span>
+<span class="code-tag">&lt;html&gt;</span>
+<span class="code-tag">&lt;head&gt;</span>
+  <span class="code-tag">&lt;meta</span> <span class="code-attribute">charset</span>=<span class="code-value">"UTF-8"</span><span class="code-tag">&gt;</span>
+  <span class="code-tag">&lt;style&gt;</span>
+    <span class="code-function">body</span> {
+      <span class="code-attribute">margin</span>: <span class="code-string">0</span>;
+      <span class="code-attribute">font-family</span>: <span class="code-string">Arial</span>;
+    }
+    <span class="code-function">.btn</span> {
+      <span class="code-attribute">padding</span>: <span class="code-string">15px 40px</span>;
+      <span class="code-attribute">background</span>: <span class="code-string">#007bff</span>;
+      <span class="code-attribute">color</span>: <span class="code-string">#fff</span>;
+      <span class="code-attribute">border</span>: <span class="code-string">none</span>;
+      <span class="code-attribute">border-radius</span>: <span class="code-string">8px</span>;
+    }
+    <span class="code-function">iframe</span> {
+      <span class="code-attribute">width</span>: <span class="code-string">100%</span>;
+      <span class="code-attribute">height</span>: <span class="code-string">100vh</span>;
+    }
+  <span class="code-tag">&lt;/style&gt;</span>
+<span class="code-tag">&lt;/head&gt;</span>
+<span class="code-tag">&lt;body&gt;</span>
+  <span class="code-tag">&lt;button</span> <span class="code-attribute">class</span>=<span class="code-value">"btn"</span> <span class="code-attribute">onclick</span>=<span class="code-value">"show()"</span><span class="code-tag">&gt;</span>View Summary<span class="code-tag">&lt;/button&gt;</span>
+  <span class="code-tag">&lt;iframe</span> <span class="code-attribute">id</span>=<span class="code-value">"f"</span><span class="code-tag">&gt;&lt;/iframe&gt;</span>
+  <span class="code-tag">&lt;script&gt;</span>
+    <span class="code-keyword">function</span> <span class="code-function">show</span>() {
+      <span class="code-keyword">const</span> u = <span class="code-keyword">new</span> <span class="code-function">URLSearchParams</span>(location.search)
+        .<span class="code-function">get</span>(<span class="code-string">'url'</span>) || location.href;
+      <span class="code-keyword">const</span> p = <span class="code-keyword">new</span> <span class="code-function">URL</span>(u.<span class="code-function">startsWith</span>(<span class="code-string">'http'</span>) ? 
+        u : <span class="code-string">'https://'</span> + u);
+      <span class="code-keyword">const</span> path = p.hostname + p.pathname + p.search + p.hash;
+      <span class="code-keyword">const</span> base = <span class="code-string">'https://c.za2.net'</span>;
+      document.<span class="code-function">getElementById</span>(<span class="code-string">'f'</span>).src = 
+        base + <span class="code-string">'/'</span> + path.<span class="code-function">replace</span>(<span class="code-string">/^\/+/</span>, <span class="code-string">''</span>);
+    }
+  <span class="code-tag">&lt;/script&gt;</span>
+<span class="code-tag">&lt;/body&gt;</span>
+<span class="code-tag">&lt;/html&gt;</span></pre>
+            </div>
+
+            <h4>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                How It Works
+            </h4>
+            <ol>
+                <li>The script extracts the current page URL (or from <code class="code-inline">?url=</code> parameter)</li>
+                <li>Constructs a summary URL: <code class="code-inline">base-url/domain/path</code></li>
+                <li>Loads the summary in an iframe when user clicks the button</li>
+            </ol>
+
+            <h4>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                </svg>
+                Example Usage
+            </h4>
+            <p>If your page is: <code class="code-inline">https://example.com/blog/article</code></p>
+            <p>Summary URL becomes: <code class="code-inline">https://c.za2.net/example.com/blog/article</code></p>
+
+            <h2>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                Automatic Summarization
+            </h2>
+            <p>Once your domain is verified, the system works automatically:</p>
+
+            <div class="feature-list">
+                <div class="feature-item">
+                    <h4>First Visit</h4>
+                    <p>When a user requests a summary for the first time, the system crawls and summarizes the page in ~5 seconds.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Subsequent Visits</h4>
+                    <p>Pre-generated summaries load instantly for returning visitors.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>No Manual Work</h4>
+                    <p>No need to manually submit URLs - everything happens automatically!</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3>
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    How Automatic Summarization Works
+                </h3>
+                <ol>
+                    <li>User clicks "View Summary" button on your website</li>
+                    <li>System checks if summary exists for that URL</li>
+                    <li>If not found and domain is verified:
+                        <ul>
+                            <li>Page is automatically crawled</li>
+                            <li>AI generates summary (~5 seconds)</li>
+                            <li>Summary is displayed and cached</li>
+                        </ul>
+                    </li>
+                    <li>Future requests load the cached summary instantly</li>
+                </ol>
+            </div>
+
+            <h2>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Manual URL Submission
+            </h2>
+            <p>You can also manually submit URLs for summarization:</p>
+            <ol>
+                <li>Go to <strong>URL Management</strong> in your dashboard</li>
+                <li>Enter the full URL you want to summarize</li>
+                <li>Click <strong>"Submit"</strong></li>
+                <li>Wait for AI to process (usually 5-10 seconds)</li>
+                <li>View your summary in the history section</li>
+            </ol>
+
+            <h2>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                Subdomain Support
+            </h2>
+            <p>After verifying your main domain, you can add subdomains:</p>
+            <ol>
+                <li>Go to <strong>Domain Verification</strong></li>
+                <li>Scroll to <strong>"Subdomains"</strong> section</li>
+                <li>Add subdomains (e.g., <code class="code-inline">blog.example.com</code>)</li>
+                <li>Subdomains inherit the main domain's verification</li>
+            </ol>
+
+            <h2>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+                Menu Customization
+            </h2>
+            <p>Customize the menu items shown in summary pages:</p>
+            <ol>
+                <li>Navigate to <strong>Menu Customization</strong></li>
+                <li>Add up to 10 custom menu items</li>
+                <li>Each item can have:
+                    <ul>
+                        <li>Button text (max 60 characters)</li>
+                        <li>Target URL (where button links to)</li>
+                    </ul>
+                </li>
+                <li>Drag to reorder items</li>
+                <li>Save changes</li>
+            </ol>
+
+            <h2>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                Integration Methods
+            </h2>
+            
+            <h3>Method 1: Iframe Embed (Recommended)</h3>
+            <p>Use the HTML code provided above. This is the simplest and most reliable method.</p>
+
+            <h3>Method 2: Direct Link</h3>
+            <p>Link users directly to the summary URL:</p>
+            <div class="code-block">
+                <pre><span class="code-tag">&lt;a</span> <span class="code-attribute">href</span>=<span class="code-value">"https://c.za2.net/example.com/page"</span> 
+   <span class="code-attribute">target</span>=<span class="code-value">"_blank"</span><span class="code-tag">&gt;</span>
+  View AI Summary
+<span class="code-tag">&lt;/a&gt;</span></pre>
+            </div>
+
+            <h3>Method 3: Custom Integration</h3>
+            <p>Build your own viewer using the summary URL format:</p>
+            <div class="code-block">
+                <pre>https://c.za2.net/{domain}/{path}</pre>
+            </div>
+
+            <h2>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                </svg>
+                Troubleshooting
+            </h2>
+            
+            <div class="warning-box">
+                <h3>
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#f9ab00" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    Common Issues
+                </h3>
+                <ul>
+                    <li><strong>Summary not generating?</strong> Ensure your domain is verified</li>
+                    <li><strong>404 errors?</strong> Check that the page URL is accessible and doesn't redirect</li>
+                    <li><strong>Slow processing?</strong> First-time summaries take ~5 seconds; this is normal</li>
+                    <li><strong>DNS verification failing?</strong> Wait 5-10 minutes for DNS propagation</li>
+                </ul>
+            </div>
+
+            <h2 style="color: #ffffff;">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                Usage Limits
+            </h2>
+            <div class="info-box">
+                <h3 style="color: #ffffff;">
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    Current Limits
+                </h3>
+                <ul>
+                    <li><strong>Daily URL submissions:</strong> 10 manual submissions per day</li>
+                    <li><strong>Automatic summaries:</strong> Unlimited (for verified domains)</li>
+                    <li><strong>Menu items:</strong> Up to 10 custom items</li>
+                    <li><strong>Subdomains:</strong> Unlimited</li>
+                </ul>
+            </div>
+
+            <h2 style="color: #ffffff;">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Need Help?
+            </h2>
+            <p>If you encounter any issues or have questions:</p>
+            <ul>
+                <li>Check the dashboard for real-time processing status</li>
+                <li>Review your domain verification status</li>
+                <li>Ensure your pages are publicly accessible</li>
+                <li>Contact support through your dashboard</li>
+            </ul>
+
+            <div style="text-align: center; margin-top: 60px; padding-top: 40px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                <a href="/register" class="back-btn" style="display: inline-block; text-decoration: none; padding: 16px 48px; font-size: 18px;">Get Started Now</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,6 +1,8 @@
+// متغیرهای عمومی
 let currentUser = null;
 let userToken = null;
 
+// بررسی احراز هویت
 function checkAuthentication() {
     const sessionId = localStorage.getItem('sessionId');
     const csrfToken = localStorage.getItem('csrfToken');
@@ -9,11 +11,33 @@ function checkAuthentication() {
         return false;
     }
 
+    // تنظیم توکن‌ها برای درخواست‌های بعدی
     userToken = { sessionId, csrfToken };
     return true;
 }
 
+// Auto-redirect if already authenticated (for login/register pages)
+async function checkAndRedirectIfAuthenticated() {
+    if (!checkAuthentication()) {
+        return false;
+    }
 
+    try {
+        const result = await makeRequest('/api/profile');
+        if (result.success) {
+            // User is authenticated, redirect to dashboard
+            window.location.href = '/dashboard';
+            return true;
+        }
+    } catch (error) {
+        // Session invalid, clear localStorage
+        localStorage.clear();
+        userToken = null;
+    }
+    return false;
+}
+
+// نمایش پیام خطا
 function showError(elementId, message) {
     const errorElement = document.getElementById(elementId);
     if (errorElement) {
@@ -22,7 +46,7 @@ function showError(elementId, message) {
     }
 }
 
-
+// نمایش پیام موفقیت
 function showSuccess(elementId, message) {
     const successElement = document.getElementById(elementId);
     if (successElement) {
@@ -31,7 +55,7 @@ function showSuccess(elementId, message) {
     }
 }
 
-
+// پاک کردن پیام‌ها
 function clearMessages() {
     const errorElements = document.querySelectorAll('.error-message');
     const successElements = document.querySelectorAll('.success-message');
@@ -40,6 +64,7 @@ function clearMessages() {
     successElements.forEach(el => el.style.display = 'none');
 }
 
+// درخواست به سرور
 async function makeRequest(url, method = 'GET', data = null) {
     const options = {
         method,
@@ -48,11 +73,13 @@ async function makeRequest(url, method = 'GET', data = null) {
         }
     };
 
-    
+    // اضافه کردن توکن‌های احراز هویت
     if (userToken) {
         options.headers['x-session-id'] = userToken.sessionId;
         options.headers['x-csrf-token'] = userToken.csrfToken;
-    } 
+    }
+
+    // اضافه کردن داده‌ها برای POST
     if (data) {
         options.body = JSON.stringify(data);
     }
@@ -71,7 +98,11 @@ async function makeRequest(url, method = 'GET', data = null) {
     }
 }
 
+// صفحه ورود
 if (document.getElementById('loginForm')) {
+    // Check if already authenticated on page load
+    checkAndRedirectIfAuthenticated();
+
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         clearMessages();
@@ -86,15 +117,19 @@ if (document.getElementById('loginForm')) {
             });
 
             if (result.success) {
-                // ذخیره توکن‌ها
+                // ذخیره توکن‌ها در localStorage
                 localStorage.setItem('sessionId', result.session.sessionId);
                 localStorage.setItem('csrfToken', result.session.csrfToken);
                 localStorage.setItem('user', JSON.stringify(result.user));
 
+                // ذخیره در cookie برای سرور (httpOnly برای امنیت بیشتر)
+                document.cookie = `sessionId=${result.session.sessionId}; path=/; max-age=86400; SameSite=Strict`;
+                document.cookie = `csrfToken=${result.session.csrfToken}; path=/; max-age=86400; SameSite=Strict`;
+
                 showSuccess('successMessage', 'Login successful. Redirecting...');
 
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    window.location.href = '/dashboard';
                 }, 1000);
             }
         } catch (error) {
@@ -103,14 +138,18 @@ if (document.getElementById('loginForm')) {
     });
 }
 
-
+// صفحه ثبت‌نام
 if (document.getElementById('registerForm')) {
+    // Check if already authenticated on page load
+    checkAndRedirectIfAuthenticated();
+
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         clearMessages();
 
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
+        const domain = document.getElementById('domain').value;
         const securityQuestion = document.getElementById('securityQuestion').value;
         const securityAnswer = document.getElementById('securityAnswer').value;
 
@@ -118,12 +157,13 @@ if (document.getElementById('registerForm')) {
             const result = await makeRequest('/api/register', 'POST', {
                 username,
                 password,
+                domain,
                 securityQuestion,
                 securityAnswer
             });
 
             if (result.success) {
-                showSuccess('successMessage', 'Registration successful. Redirecting to login page...');
+                showSuccess('successMessage', 'Website owner registered successfully. Redirecting to login page...');
 
                 setTimeout(() => {
                     window.location.href = 'login.html';
@@ -135,11 +175,14 @@ if (document.getElementById('registerForm')) {
     });
 }
 
-let currentResetToken = null; 
+// صفحه فراموشی رمز عبور
+let currentResetToken = null; // متغیر برای ذخیره توکن reset
 
 if (document.getElementById('verifyForm')) {
+    // Check if already authenticated on page load
+    checkAndRedirectIfAuthenticated();
 
-    
+    // دریافت سوال امنیتی
     document.getElementById('getQuestionBtn').addEventListener('click', async function() {
         clearMessages();
 
@@ -162,7 +205,7 @@ if (document.getElementById('verifyForm')) {
         }
     });
 
-    
+    // تایید پاسخ سوال امنیتی
     document.getElementById('answerForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         clearMessages();
@@ -186,7 +229,9 @@ if (document.getElementById('verifyForm')) {
             showError('errorMessage', error.message);
         }
     });
-} 
+}
+
+// تنظیم رمز عبور جدید
 if (document.getElementById('resetForm')) {
     document.getElementById('resetForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -219,7 +264,7 @@ if (document.getElementById('resetForm')) {
     });
 }
 
-// Main pag e
+// Main page - Load user profile
 async function loadUserProfile() {
     try {
         const result = await makeRequest('/api/profile');
@@ -252,7 +297,7 @@ async function loadUserProfile() {
     }
 }
 
-
+// User dropdown functionality
 if (document.getElementById('userInfo')) {
     const userInfo = document.getElementById('userInfo');
     const dropdownMenu = document.getElementById('dropdownMenu');
@@ -261,26 +306,34 @@ if (document.getElementById('userInfo')) {
         e.stopPropagation();
         dropdownMenu.classList.toggle('show');
     });
+
+    // Close dropdown when clicking outside
     document.addEventListener('click', function() {
         dropdownMenu.classList.remove('show');
     });
 
-    
+    // Prevent dropdown from closing when clicking inside it
     dropdownMenu.addEventListener('click', function(e) {
         e.stopPropagation();
     });
 }
 
-
+// خروج از سیستم
 if (document.getElementById('logoutBtn')) {
     document.getElementById('logoutBtn').addEventListener('click', async function() {
         try {
             await makeRequest('/api/logout', 'POST');
         } catch (error) {
             console.error('Logout error:', error);
-        } finally { 
+        } finally {
+            // پاک کردن توکن‌ها از localStorage
             localStorage.clear();
-            window.location.href = 'login.html';
+            
+            // پاک کردن cookies
+            document.cookie = 'sessionId=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            document.cookie = 'csrfToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            
+            window.location.href = '/login';
         }
     });
 }
