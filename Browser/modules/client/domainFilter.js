@@ -1,7 +1,7 @@
 
 class DomainFilter {
   constructor() {
-    // لیست دامنه‌های ممنوع
+    // List of blocked domains
     this.blockedDomains = [
       'instagram.com',
       'wikipedia.org',
@@ -12,42 +12,42 @@ class DomainFilter {
     ];
   }
 
-  // استخراج دامنه اصلی از URL
+  // Extract main domain from URL
   extractDomain(url) {
     try {
       const urlObject = new URL(url);
       let hostname = urlObject.hostname.toLowerCase();
       
-      // حذف www. از ابتدای دامنه
+      // Remove www. from the beginning of domain
       if (hostname.startsWith('www.')) {
         hostname = hostname.substring(4);
       }
       
       return hostname;
     } catch (error) {
-      console.error('خطا در پارس URL:', url, error.message);
+      console.error('Error parsing URL:', url, error.message);
       return null;
     }
   }
 
-  // بررسی اینکه آیا دامنه در لیست ممنوع است یا خیر
+  // Check if domain is in blocked list
   isBlockedDomain(url) {
     const domain = this.extractDomain(url);
     if (!domain) return false;
 
-    // بررسی دامنه اصلی و زیردامنه‌ها
+    // Check main domain and subdomains
     return this.blockedDomains.some(blockedDomain => {
-      // بررسی دقیق دامنه
+      // Exact domain check
       if (domain === blockedDomain) return true;
       
-      // بررسی زیردامنه‌ها (مثل m.facebook.com)
+      // Check subdomains (like m.facebook.com)
       if (domain.endsWith('.' + blockedDomain)) return true;
       
       return false;
     });
   }
 
-  // فیلتر کردن نتایج جستجو و انتخاب URL های معتبر
+  // Filter search results and select valid URLs
   filterSearchResults(searchResults, maxUrls = 2) {
     const validUrls = [];
     const blockedUrls = [];
@@ -83,7 +83,7 @@ class DomainFilter {
       } else {
         validUrls.push(result);
         
-        // اگر به تعداد مطلوب رسیدیم، توقف
+        // Stop if we reached desired number
         if (validUrls.length >= maxUrls) {
           break;
         }
@@ -98,7 +98,7 @@ class DomainFilter {
     };
   }
 
-  // اضافه کردن دامنه جدید به لیست ممنوع
+  // Add new domain to blocked list
   addBlockedDomain(domain) {
     const cleanDomain = domain.toLowerCase().replace(/^www\./, '');
     if (!this.blockedDomains.includes(cleanDomain)) {
@@ -108,7 +108,7 @@ class DomainFilter {
     return false;
   }
 
-  // حذف دامنه از لیست ممنوع
+  // Remove domain from blocked list
   removeBlockedDomain(domain) {
     const cleanDomain = domain.toLowerCase().replace(/^www\./, '');
     const index = this.blockedDomains.indexOf(cleanDomain);
@@ -119,12 +119,12 @@ class DomainFilter {
     return false;
   }
 
-  // دریافت لیست دامنه‌های ممنوع
+  // Get list of blocked domains
   getBlockedDomains() {
     return [...this.blockedDomains];
   }
 
-  // تست عملکرد فیلتر
+  // Test filter functionality
   testFilter(urls) {
     const results = {
       blocked: [],

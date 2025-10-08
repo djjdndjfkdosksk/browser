@@ -9,6 +9,60 @@ class CrawlerModule {
     this.domainFilter = new DomainFilter();
   }
 
+  // Validate if URL exists before crawling (HEAD request)
+  async validateUrlExists(url) {
+    try {
+      const response = await axios.head(url, {
+        timeout: 10000,
+        maxRedirects: 5,
+        validateStatus: (status) => status < 500
+      });
+
+      if (response.status === 404 || response.status === 410 || response.status === 403) {
+        return { exists: false, status: response.status };
+      }
+
+      // Check if URL was redirected
+      const finalUrl = response.request?.res?.responseUrl || response.config.url;
+      const redirected = finalUrl !== url;
+
+      return { 
+        exists: true, 
+        status: response.status,
+        redirected: redirected,
+        finalUrl: finalUrl
+      };
+    } catch (error) {
+      // If HEAD fails, try GET with very short timeout
+      try {
+        const response = await axios.get(url, {
+          timeout: 5000,
+          maxRedirects: 5,
+          validateStatus: (status) => status < 500,
+          maxContentLength: 1024 // Only get first 1KB
+        });
+
+        if (response.status === 404 || response.status === 410 || response.status === 403) {
+          return { exists: false, status: response.status };
+        }
+
+        // Check if URL was redirected
+        const finalUrl = response.request?.res?.responseUrl || response.config.url;
+        const redirected = finalUrl !== url;
+
+        return { 
+          exists: true, 
+          status: response.status,
+          redirected: redirected,
+          finalUrl: finalUrl
+        };
+      } catch (getError) {
+        console.error(`URL validation error: ${url}`, getError.message);
+        return { exists: false, status: 0, error: getError.message };
+      }
+    }
+  }
+
   // Hash URL to create consistent request ID
   hashUrl(url) {
     return crypto.createHash('md5').update(url).digest('hex');
@@ -50,7 +104,7 @@ class CrawlerModule {
       // Process all URLs first
       const allUrlHashes = await this.processSearchResults(searchResults);
 
-      // فیلتر کردن نتایج جستجو برای حذف دامنه‌های ممنوع
+      // Filter search results to remove blocked domains
       const filterResult = this.domainFilter.filterSearchResults(searchResults, 5);
 
       const urlsToCrawl = [];
@@ -65,7 +119,7 @@ class CrawlerModule {
         skippedCrawling: []
       };
 
-      // پردازش URL های معتبر (غیر ممنوع)
+      // Process valid URLs (not blocked)
       for (const result of filterResult.validUrls) {
         if (result.link) {
           try {
@@ -88,22 +142,22 @@ class CrawlerModule {
               autoCrawlInfo.skippedCrawling.push(urlHash);
             }
           } catch (urlError) {
-            console.error('خطا در پردازش URL:', result.link, urlError.message);
+            console.error('Error processing URL:', result.link, urlError.message);
           }
         }
       }
 
-      // لاگ کردن دامنه‌های مسدود شده
+      // Log blocked domains
       if (filterResult.blockedUrls.length > 0) {
-        console.log(`🚫 ${filterResult.blockedUrls.length} URL از دامنه‌های ممنوع فیلتر شد:`, 
+        console.log(`🚫 ${filterResult.blockedUrls.length} URLs from blocked domains filtered:`, 
                    filterResult.skippedDomains.join(', '));
       }
 
       // Start crawling in background
       if (urlsToCrawl.length > 0) {
-        console.log(`🔄 شروع خزش خودکار برای ${urlsToCrawl.length} URL`);
+        console.log(`🔄 Starting auto-crawl for ${urlsToCrawl.length} URLs`);
         this.crawlInBackground(urlsToCrawl, userId).catch(error => {
-          console.error('خطا در خزش پس‌زمینه:', error.message);
+          console.error('Error in background crawl:', error.message);
         });
       }
 
@@ -113,7 +167,7 @@ class CrawlerModule {
       };
 
     } catch (error) {
-      console.error('خطا در پردازش نتایج جستجو:', error.message);
+      console.error('Error processing search results:', error.message);
       // Return minimal result on error
       return {
         urlHashes: [],
@@ -130,7 +184,7 @@ class CrawlerModule {
 
   // Crawl URLs in background with smart processing
   async crawlInBackground(urlsToCrawl, userId) {
-    console.log(`🔄 شروع خزش خودکار ${urlsToCrawl.length} URL در پس‌زمینه`);
+    console.log(`🔄 Starting auto-crawl of ${urlsToCrawl.length} URLs in background`);
 
     const crawlResults = [];
     const browserNeededUrls = [];
@@ -142,7 +196,7 @@ class CrawlerModule {
         // Update status to crawling
         await global.clientDatabase.updateCrawlStatus(urlHash, 'crawling');
 
-        console.log(`🕷️ خزش خودکار: ${url}`);
+        console.log(`🕷️ Auto-crawling: ${url}`);
 
         // Crawl the URL
         const result = await this.crawlUrl(url, userId);
@@ -156,11 +210,11 @@ class CrawlerModule {
           if (mainContentWords === 0) {
             // URL needs browser processing
             browserNeededUrls.push({ url, urlHash });
-            console.log(`🌐 URL نیاز به مرورگر دارد: ${url}`);
+            console.log(`🌐 URL needs browser: ${url}`);
           } else {
             // URL has good content
             successfulCrawls.push({ url, urlHash, result });
-            console.log(`✅ خزش موفق: ${urlHash} (${mainContentWords} کلمه اصلی)`);
+            console.log(`✅ Crawl successful: ${urlHash} (${mainContentWords} main words)`);
           }
 
           // Update status to completed
@@ -170,14 +224,14 @@ class CrawlerModule {
           // Update status to failed
           const attempts = (await global.clientDatabase.getCrawlStatus(urlHash))?.crawl_attempts || 0;
           await global.clientDatabase.updateCrawlStatus(urlHash, 'failed', attempts + 1);
-          console.log(`❌ خزش ناموفق: ${urlHash}`);
+          console.log(`❌ Crawl failed: ${urlHash}`);
         }
 
         // Wait 2 seconds between crawls
         await new Promise(resolve => setTimeout(resolve, 2000));
 
       } catch (error) {
-        console.error(`❌ خطا در خزش ${url}:`, error.message);
+        console.error(`❌ Error crawling ${url}:`, error.message);
 
         // Update status to failed
         const attempts = (await global.clientDatabase.getCrawlStatus(urlHash))?.crawl_attempts || 0;
@@ -185,12 +239,12 @@ class CrawlerModule {
       }
     }
 
-    console.log(`📊 نتیجه خزش: ${successfulCrawls.length} موفق، ${browserNeededUrls.length} نیازمند مرورگر`);
+    console.log(`📊 Crawl result: ${successfulCrawls.length} successful, ${browserNeededUrls.length} need browser`);
 
     // Process results based on success criteria
     await this.processAllCrawlResults(successfulCrawls, browserNeededUrls, userId);
 
-    console.log(`🏁 خزش خودکار تکمیل شد`);
+    console.log(`🏁 Auto-crawl completed`);
   }
 
   // Process all crawl results with smart AI summarization
@@ -198,7 +252,7 @@ class CrawlerModule {
     try {
       if (successfulCrawls.length > 0) {
         // Send each successful URL individually for AI summarization
-        console.log(`✅ ${successfulCrawls.length} URL موفق - ارسال هر یک به صورت جداگانه برای خلاصه‌سازی`);
+        console.log(`✅ ${successfulCrawls.length} successful URLs - sending each individually for summarization`);
 
         const aiPromises = successfulCrawls.map(async ({ url, urlHash, result }) => {
           try {
@@ -211,30 +265,30 @@ class CrawlerModule {
             };
 
             await this.sendToAgentForSummarization(urlHash, jsonContent);
-            console.log(`🤖 محتوا برای خلاصه‌سازی به Agent ارسال شد: ${urlHash}`);
+            console.log(`🤖 Content sent to Agent for summarization: ${urlHash}`);
           } catch (agentError) {
-            console.error(`❌ خطا در ارسال ${urlHash} به Agent: ${agentError.message}`);
+            console.error(`❌ Error sending ${urlHash} to Agent: ${agentError.message}`);
           }
         });
 
         await Promise.all(aiPromises);
 
         if (browserNeededUrls.length > 0) {
-          console.log(`📝 ${browserNeededUrls.length} URL نیازمند مرورگر ذخیره شد برای پردازش آینده`);
+          console.log(`📝 ${browserNeededUrls.length} URLs need browser saved for future processing`);
         }
 
       } else if (successfulCrawls.length === 0) {
         const totalProcessed = successfulCrawls.length + browserNeededUrls.length;
         if (browserNeededUrls.length === totalProcessed && browserNeededUrls.length > 0) {
           // All URLs need browser - system should step aside to avoid errors
-          console.log(`🚫 همه URL ها نیاز به مرورگر دارند - سیستم کنار می‌رود تا خطا ندهد`);
+          console.log(`🚫 All URLs require browser - system steps aside to avoid errors`);
         } else {
-          console.log(`❌ هیچ URL موفقی یافت نشد`);
+          console.log(`❌ No successful URLs found`);
         }
       }
 
     } catch (error) {
-      console.error('❌ خطا در پردازش نتایج خزش:', error.message);
+      console.error('❌ Error processing crawl results:', error.message);
     }
   }
 
@@ -251,7 +305,7 @@ class CrawlerModule {
       const requestData = {
         urls: [url],
         requestId: requestId,
-        query: 'خزیدن هوشمند محتوا',
+        query: 'Smart content crawling',
         timestamp: Date.now(),
         source: 'internal-browser-app'
       };
@@ -287,9 +341,9 @@ class CrawlerModule {
             COALESCE((SELECT access_count FROM url_hashes WHERE url_hash = ?) + 1, 1))
         `, [urlHash, url, urlHash]);
 
-        // Store crawl request
+        // Store crawl request (use INSERT OR REPLACE to handle duplicates)
         await this.database.query(`
-          INSERT INTO user_crawl_requests 
+          INSERT OR REPLACE INTO user_crawl_requests 
           (request_id, user_id, url_hash, processing_time, total_blocks, total_words)
           VALUES (?, ?, ?, ?, ?, ?)
         `, [requestId, userId, urlHash, processingTime, totalBlocks, totalWords]);
@@ -314,7 +368,15 @@ class CrawlerModule {
         const mainContentWords = response.data.crawlResults[0]?.extractedData?.mainContentWords || 0;
         await global.clientDatabase.updateJsonFileMetadata(urlHash, filePath, totalWords, mainContentWords);
 
-        // Note: AI summarization now handled in batch processing by processAllCrawlResults method
+        // Send to Agent immediately after successful crawl
+        console.log(`🤖 [${urlHash}] Auto-sending to Agent for summarization...`);
+        try {
+          await this.sendToAgentForSummarization(urlHash, jsonContent);
+          console.log(`✅ [${urlHash}] Content successfully sent to Agent`);
+        } catch (agentError) {
+          console.error(`⚠️ [${urlHash}] Error sending to Agent: ${agentError.message}`);
+          // Don't fail the crawl if Agent is unavailable
+        }
 
         return {
           success: true,
@@ -390,7 +452,9 @@ class CrawlerModule {
       // Update summary status to 'processing'
       await global.clientDatabase.updateSummaryStatus(urlHash, 'processing');
 
-      console.log(`🚀 [${urlHash}] ارسال محتوا به Agent برای خلاصه‌سازی...`);
+      console.log(`🚀 [${urlHash}] Sending content to Agent for summarization...`);
+      console.log(`📝 URL: ${jsonContent.url}`);
+      console.log(`📊 Content: ${JSON.stringify(jsonContent.filteredData).substring(0, 200)}...`);
 
       const agentResponse = await axios.post('https://gshsh-production.up.railway.app/api/process', {
         fileId: urlHash,
@@ -404,22 +468,22 @@ class CrawlerModule {
       });
 
       if (agentResponse.data.success) {
-        console.log(`✅ [${urlHash}] فایل با موفقیت پردازش شد`);
+        console.log(`✅ [${urlHash}] File processed successfully`);
         
         // Save summary directly from response
         if (agentResponse.data.summary) {
           await global.clientDatabase.saveSummary(urlHash, agentResponse.data.summary);
           await global.clientDatabase.markFileAsSummarized(urlHash);
-          console.log(`💾 [${urlHash}] خلاصه ذخیره شد`);
+          console.log(`💾 [${urlHash}] Summary saved`);
         }
         
         await global.clientDatabase.updateSummaryStatus(urlHash, 'summarized');
       } else {
-        console.error(`❌ [${urlHash}] خطا در پردازش: ${agentResponse.data.error}`);
+        console.error(`❌ [${urlHash}] Processing error: ${agentResponse.data.error}`);
         await global.clientDatabase.updateSummaryStatus(urlHash, 'failed');
       }
     } catch (error) {
-      console.error(`❌ [${urlHash}] خطا در ارسال به Agent: ${error.message}`);
+      console.error(`❌ [${urlHash}] Error sending to Agent: ${error.message}`);
       // Update summary status to failed
       await global.clientDatabase.updateSummaryStatus(urlHash, 'failed');
       throw new Error(`Failed to send to Agent: ${error.message}`);

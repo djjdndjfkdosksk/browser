@@ -138,6 +138,19 @@ class ClientDatabase {
         CREATE INDEX IF NOT EXISTS idx_url_hashes_hash ON url_hashes(url_hash)
       `);
 
+      // Create indexes for domain summaries optimization
+      await this.database.query(`
+        CREATE INDEX IF NOT EXISTS idx_url_hashes_original_url ON url_hashes(original_url)
+      `);
+
+      await this.database.query(`
+        CREATE INDEX IF NOT EXISTS idx_url_hashes_crawl_completed ON url_hashes(crawl_completed_at DESC)
+      `);
+
+      await this.database.query(`
+        CREATE INDEX IF NOT EXISTS idx_url_hashes_status ON url_hashes(crawl_status, summary_status)
+      `);
+
       await this.database.query(`
         CREATE INDEX IF NOT EXISTS idx_user_crawl_requests_user ON user_crawl_requests(user_id)
       `);
@@ -216,19 +229,19 @@ class ClientDatabase {
 
   // Optimized version: Check if URL should be crawled based on existing status data
   shouldCrawlUrlFromStatus(urlData) {
-    // اگر URL جدید است
+    // If URL is new
     if (!urlData) return true;
     
-    // اگر قبلاً خزش شده، نیازی نیست
+    // If already crawled, no need to crawl again
     if (urlData.crawl_status === 'completed') return false;
     
-    // اگر در حال خزش است و کمتر از 30 دقیقه گذشته
+    // If currently crawling and less than 30 minutes have passed
     if (urlData.crawl_status === 'crawling') {
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
       if (new Date(urlData.last_seen) > thirtyMinutesAgo) return false;
     }
     
-    // اگر pending یا failed است، باید خزش شود
+    // If pending or failed, should be crawled
     return true;
   }
 
