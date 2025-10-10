@@ -9,7 +9,6 @@ const fs = require('fs');
 const helmet = require('helmet');
 const cors = require('cors');
 const multer = require('multer');
-const cookieParser = require('cookie-parser');
 
 // Import modules
 const database = require('./database');
@@ -21,10 +20,6 @@ const forgotPasswordModule = require('./modules/forgot-password');
 const SearchLimitModule = require('./modules/searchLimit');
 const adminModule = require('./modules/admin');
 const adminDownloadModule = require('./modules/admin-download');
-const MenuCustomization = require('./modules/menuCustomization');
-const DomainVerification = require('./modules/domainVerification');
-const UserCleanup = require('./modules/userCleanup');
-const sessionCheck = require('./modules/sessionCheck');
 
 // Configure multer for file uploads (used in backup restore)
 const uploadBackup = multer({ 
@@ -36,8 +31,6 @@ const uploadBackup = multer({
 const CrawlerModule = require('./modules/client/crawler');
 const ClientDatabase = require('./modules/client/database');
 const ClientFileManager = require('./modules/client/fileManager');
-const PublicSummaryViewer = require('./modules/publicSummaryViewer');
-const AutoSummaryGenerator = require('./modules/autoSummaryGenerator');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -45,11 +38,8 @@ const PORT = process.env.PORT || 5000;
 // Trust proxy for rate limiting in Replit environment
 app.set('trust proxy', 1);
 
-// Security middleware - Configure helmet to allow iframe embedding
-app.use(helmet({
-  frameguard: false, // Disable X-Frame-Options to allow iframe
-  contentSecurityPolicy: false // Disable CSP or configure it properly below
-}));
+// Security middleware
+app.use(helmet());
 app.use(security.securityHeaders);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? process.env.ALLOWED_ORIGINS?.split(',') : true,
@@ -61,7 +51,6 @@ const loginLimiter = security.createRateLimit(15 * 60 * 1000, 5); // 5 attempts 
 const registerLimiter = security.createRateLimit(60 * 60 * 1000, 3); // 3 registrations per hour
 const forgotPasswordLimiter = security.createRateLimit(60 * 60 * 1000, 3); // 3 attempts per hour
 
-app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
@@ -71,40 +60,25 @@ app.use(logger.logRequest.bind(logger));
 
 // Initialize local database
 database.init().then(async () => {
-  logger.info('Local database ready');
-  logger.database('SQLite database successfully connected');
+  logger.info('دیتابیس محلی آماده است');
+  logger.database('دیتابیس SQLite با موفقیت اتصال برقرار کرد');
   
   // Initialize client modules
   global.crawlerModule = new CrawlerModule(database);
   global.clientDatabase = new ClientDatabase();
   global.clientFileManager = new ClientFileManager();
-  global.publicSummaryViewer = new PublicSummaryViewer(global.clientDatabase, logger);
-  global.autoSummaryGenerator = new AutoSummaryGenerator(database, global.clientDatabase, global.crawlerModule);
   
   // Initialize client tables
   await global.clientDatabase.initClientTables();
-  logger.info('Client modules ready');
+  logger.info('ماژول‌های client آماده شدند');
   
   // Initialize search limit module
   const defaultDailyLimit = Number(process.env.DAILY_SEARCH_LIMIT) || 10;
   global.searchLimit = new SearchLimitModule(database, logger, { defaultDailyLimit });
   await global.searchLimit.init();
-  logger.info(`Daily search limit module ready (default limit: ${defaultDailyLimit})`);
-  
-  // Initialize menu customization module
-  global.menuCustomization = new MenuCustomization(database, logger);
-  await global.menuCustomization.initialize();
-  logger.info('Menu customization module ready');
-  
-  // Initialize domain verification module
-  global.domainVerification = new DomainVerification(database, logger);
-  logger.info('Domain verification module ready');
-  
-  // Initialize user cleanup module
-  global.userCleanup = new UserCleanup(database, logger);
-  logger.info('User cleanup module ready');
+  logger.info(`ماژول محدودیت سرچ روزانه آماده شد (محدودیت پیش‌فرض: ${defaultDailyLimit})`);
 }).catch((error) => {
-  logger.error('Error connecting to database', error);
+  logger.error('خطا در اتصال به دیتابیس', error);
 });
 
 // Authentication middleware
@@ -114,19 +88,19 @@ const requireAuth = async (req, res, next) => {
     const csrfToken = req.headers['x-csrf-token'];
 
     if (!sessionId || !csrfToken) {
-      logger.security('Request without authentication', { ip: req.ip, path: req.path });
+      logger.security('درخواست بدون احراز هویت', { ip: req.ip, path: req.path });
       return res.status(401).json({ error: 'Authentication required' });
     }
 
     const session = await security.validateSession(sessionId);
     if (!session) {
-      logger.security('Invalid or expired session', { sessionId, ip: req.ip });
+      logger.security('جلسه نامعتبر یا منقضی', { sessionId, ip: req.ip });
       return res.status(401).json({ error: 'Invalid or expired session' });
     }
 
     const isValidCSRF = await security.validateCSRF(csrfToken, sessionId);
     if (!isValidCSRF) {
-      logger.security('CSRF token validation failed', { sessionId, ip: req.ip });
+      logger.security('شکست در اعتبارسنجی CSRF token', { sessionId, ip: req.ip });
       return res.status(403).json({ error: 'CSRF token validation failed' });
     }
 
@@ -134,63 +108,25 @@ const requireAuth = async (req, res, next) => {
     req.userId = session.userId;
     next();
   } catch (error) {
-    logger.error('Error in authentication middleware', error, { ip: req.ip });
+    logger.error('خطا در middleware احراز هویت', error, { ip: req.ip });
     return res.status(500).json({ error: 'Authentication error' });
   }
 };
 
-// Verification middleware
-const requireVerified = async (req, res, next) => {
-  try {
-    const result = await database.query(
-      'SELECT verification_status FROM users WHERE id = ?',
-      [req.userId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (result.rows[0].verification_status !== 'verified') {
-      return res.status(403).json({ 
-        error: 'Domain verification required',
-        message: 'To access this feature, you must first verify your domain',
-        verified: false
-      });
-    }
-
-    next();
-  } catch (error) {
-    logger.error('Error in verification middleware', error, { ip: req.ip });
-    return res.status(500).json({ error: 'Verification check error' });
-  }
-};
-
-// Apply session check middleware to all routes
-app.use(sessionCheck.checkActiveSession);
-
 // Serve HTML pages
 app.get('/', (req, res) => {
-  // Check if user is authenticated
-  const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
-  if (sessionId) {
-    // Redirect authenticated users to dashboard
-    res.redirect('/dashboard');
-  } else {
-    // Show landing page to non-authenticated users
-    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
-  }
-});
-
-app.get('/login', sessionCheck.redirectIfAuthenticated, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get('/register', sessionCheck.redirectIfAuthenticated, (req, res) => {
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
-app.get('/forgot-password', sessionCheck.redirectIfAuthenticated, (req, res) => {
+app.get('/forgot-password', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
 });
 
@@ -202,27 +138,11 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-app.get('/menu-customization', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'menu-customization.html'));
-});
-
-app.get('/domain-verification', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'domain-verification.html'));
-});
-
-app.get('/url-management', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'url-management.html'));
-});
-
-app.get('/docs', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'docs.html'));
-});
-
 // API Routes
 app.post('/api/register', registerLimiter, async (req, res) => {
   try {
-    const { username, password, securityQuestion, securityAnswer, domain } = req.body;
-    const result = await registerModule.registerUser(username, password, securityQuestion, securityAnswer, domain);
+    const { username, password, securityQuestion, securityAnswer } = req.body;
+    const result = await registerModule.registerUser(username, password, securityQuestion, securityAnswer);
     
     if (result.success) {
       res.status(201).json(result);
@@ -230,7 +150,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
       res.status(400).json(result);
     }
   } catch (error) {
-    logger.error('Error in registration route', error, { username: req.body.username, domain: req.body.domain, ip: req.ip });
+    logger.error('خطا در route ثبت نام', error, { username: req.body.username, ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -246,7 +166,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       res.status(401).json(result);
     }
   } catch (error) {
-    logger.error('Error in login route', error, { username: req.body.username, ip: req.ip });
+    logger.error('خطا در route ورود', error, { username: req.body.username, ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -257,7 +177,7 @@ app.post('/api/logout', async (req, res) => {
     const result = await loginModule.logout(sessionId);
     res.status(200).json(result);
   } catch (error) {
-    logger.error('Error in logout route', error, { ip: req.ip });
+    logger.error('خطا در route خروج', error, { ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -274,7 +194,7 @@ app.get('/api/security-question/:username', forgotPasswordLimiter, async (req, r
       res.status(404).json(result);
     }
   } catch (error) {
-    logger.error('Error in security question route', error, { username: req.params.username, ip: req.ip });
+    logger.error('خطا در route سوال امنیتی', error, { username: req.params.username, ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -290,7 +210,7 @@ app.post('/api/forgot-password/verify', forgotPasswordLimiter, async (req, res) 
       res.status(401).json(result);
     }
   } catch (error) {
-    logger.error('Error in security answer verification route', error, { username: req.body.username, ip: req.ip });
+    logger.error('خطا در route تأیید پاسخ امنیتی', error, { username: req.body.username, ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -306,7 +226,7 @@ app.post('/api/forgot-password/reset', forgotPasswordLimiter, async (req, res) =
       res.status(400).json(result);
     }
   } catch (error) {
-    logger.error('Error in password recovery route', error, { ip: req.ip });
+    logger.error('خطا در route بازیابی گذرواژه', error, { ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -315,7 +235,7 @@ app.post('/api/forgot-password/reset', forgotPasswordLimiter, async (req, res) =
 app.get('/api/profile', requireAuth, async (req, res) => {
   try {
     const result = await database.query(
-      'SELECT id, username, domain, verification_status, created_at, last_login FROM users WHERE id = ?',
+      'SELECT id, username, created_at, last_login FROM users WHERE id = ?',
       [req.user.id]
     );
     
@@ -325,98 +245,8 @@ app.get('/api/profile', requireAuth, async (req, res) => {
       res.status(404).json({ error: 'User not found' });
     }
   } catch (error) {
-    logger.error('Error in profile route', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در route پروفایل', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Domain verification routes
-app.post('/api/domain/request-verification', requireAuth, async (req, res) => {
-  try {
-    const result = await global.domainVerification.requestVerification(req.userId);
-    res.json(result);
-  } catch (error) {
-    logger.error('Error in domain verification request', error, { userId: req.userId, ip: req.ip });
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-app.post('/api/domain/verify', requireAuth, async (req, res) => {
-  try {
-    const result = await global.domainVerification.verifyDomain(req.userId);
-    res.json(result);
-  } catch (error) {
-    logger.error('Error in domain verification', error, { userId: req.userId, ip: req.ip });
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-app.get('/api/domain/status', requireAuth, async (req, res) => {
-  try {
-    const result = await global.domainVerification.getVerificationStatus(req.userId);
-    res.json(result);
-  } catch (error) {
-    logger.error('Error getting verification status', error, { userId: req.userId, ip: req.ip });
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-app.post('/api/domain/subdomain', requireAuth, requireVerified, async (req, res) => {
-  try {
-    const { subdomain } = req.body;
-    const result = await global.domainVerification.addSubdomain(req.userId, subdomain);
-    res.json(result);
-  } catch (error) {
-    logger.error('Error adding subdomain', error, { userId: req.userId, ip: req.ip });
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/domain/subdomain/:subdomain', requireAuth, requireVerified, async (req, res) => {
-  try {
-    const { subdomain } = req.params;
-    const result = await global.domainVerification.removeSubdomain(req.userId, subdomain);
-    res.json(result);
-  } catch (error) {
-    logger.error('Error removing subdomain', error, { userId: req.userId, ip: req.ip });
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// Menu customization routes (protected by verification)
-app.get('/api/menu-items', requireAuth, requireVerified, async (req, res) => {
-  try {
-    const result = await global.menuCustomization.getMenuItems(req.userId);
-    res.json(result);
-  } catch (error) {
-    logger.error('Error getting menu items', error, { userId: req.userId, ip: req.ip });
-    res.status(500).json({ 
-      success: false, 
-      error: 'Internal server error',
-      items: []
-    });
-  }
-});
-
-app.post('/api/menu-items', requireAuth, requireVerified, async (req, res) => {
-  try {
-    const { items } = req.body;
-    
-    if (!Array.isArray(items)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid items format' 
-      });
-    }
-
-    const result = await global.menuCustomization.saveMenuItems(req.userId, items);
-    res.json(result);
-  } catch (error) {
-    logger.error('Error saving menu items', error, { userId: req.userId, ip: req.ip });
-    res.status(500).json({ 
-      success: false, 
-      error: 'Internal server error' 
-    });
   }
 });
 
@@ -460,193 +290,178 @@ function validateSearchQuery(query) {
   return { valid: true };
 }
 
-// Submit URL for crawling and summarization
-app.post('/api/submit-url', requireAuth, searchLimitAndCount, async (req, res) => {
+// Search endpoint
+app.post('/api/search', requireAuth, searchLimitAndCount, async (req, res) => {
   try {
-    const { url } = req.body;
+    const { query } = req.body;
     const userId = req.user.id;
     
-    if (!url || url.trim().length === 0) {
-      return res.status(400).json({ error: 'URL is required' });
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({ error: 'Query is required' });
     }
 
-    const userResult = await database.query('SELECT username, domain FROM users WHERE id = ?', [userId]);
+    // Validate query format
+    const validation = validateSearchQuery(query);
+    if (!validation.valid) {
+      logger.security('جستجوی نامعتبر', { userId, query: query.substring(0, 50), error: validation.error });
+      return res.status(400).json({ 
+        success: false,
+        error: validation.error
+      });
+    }
+
+    // Generate requestId: username + timestamp + query (hashed)
+    const userResult = await database.query('SELECT username FROM users WHERE id = ?', [userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
     
     const username = userResult.rows[0].username;
-    const userDomain = userResult.rows[0].domain;
-    
-    if (!userDomain) {
-      return res.status(400).json({ error: 'No domain configured for this user' });
-    }
-
-    // Get user's subdomains
-    const subdomainsResult = await database.query(
-      'SELECT subdomain FROM user_subdomains WHERE user_id = ?',
-      [userId]
-    );
-    const userSubdomains = subdomainsResult.rows.map(r => r.subdomain);
-
-    try {
-      const submittedUrl = new URL(url.trim());
-      const userDomainUrl = userDomain.startsWith('http') ? new URL(userDomain) : new URL(`https://${userDomain}`);
-      
-      const submittedHostname = submittedUrl.hostname.toLowerCase().replace(/^www\./, '');
-      const userHostname = userDomainUrl.hostname.toLowerCase().replace(/^www\./, '');
-      
-      // Check if URL matches main domain or any subdomain
-      const isMainDomain = submittedHostname === userHostname;
-      const isAllowedSubdomain = userSubdomains.some(subdomain => 
-        submittedHostname === subdomain.replace(/^www\./, '')
-      );
-
-      if (!isMainDomain && !isAllowedSubdomain) {
-        return res.status(403).json({ 
-          error: `URL must be from your domain or registered subdomains (${userHostname})`,
-          submittedDomain: submittedHostname,
-          allowedDomain: userHostname,
-          allowedSubdomains: userSubdomains
-        });
-      }
-    } catch (urlError) {
-      return res.status(400).json({ error: 'Invalid URL format' });
-    }
-
-    // Validate URL doesn't redirect before processing
-    logger.info('Validating URL for redirects', { userId, url });
-    const urlValidation = await global.crawlerModule.validateUrlExists(url.trim());
-    
-    if (!urlValidation.exists) {
-      logger.info('URL does not exist (manual submission)', { userId, url, status: urlValidation.status });
-      return res.status(404).json({
-        success: false,
-        error: 'URL does not exist or is not accessible',
-        httpStatus: urlValidation.status
-      });
-    }
-
-    // Check if URL redirected
-    if (urlValidation.redirected && urlValidation.finalUrl !== url.trim()) {
-      logger.info('URL redirects to different location (manual submission)', { 
-        userId, 
-        originalUrl: url.trim(), 
-        finalUrl: urlValidation.finalUrl 
-      });
-      return res.status(400).json({
-        success: false,
-        error: 'URL redirects are not allowed. Please submit the final destination URL.',
-        originalUrl: url.trim(),
-        redirectsTo: urlValidation.finalUrl
-      });
-    }
-
-    // Generate URL hash to check for duplicates
-    const urlHash = global.crawlerModule.hashUrl(url.trim());
-    
-    // Check if URL already exists in system (completed, crawling, or pending)
-    const existingCrawl = await global.clientDatabase.getCrawlStatus(urlHash);
-    
-    if (existingCrawl) {
-      // URL already exists in system - reject duplicate
-      logger.info('URL already exists in system, rejecting duplicate', { 
-        userId, 
-        url, 
-        urlHash,
-        status: existingCrawl.crawl_status 
-      });
-      
-      // Find existing search request for this URL to return its requestId
-      const existingSearch = await database.query(
-        'SELECT request_id FROM searches WHERE user_id = ? AND result_urls LIKE ? ORDER BY created_at DESC LIMIT 1',
-        [userId, `%${urlHash}%`]
-      );
-      
-      const existingRequestId = existingSearch.rows.length > 0 
-        ? existingSearch.rows[0].request_id 
-        : null;
-
-      return res.status(409).json({
-        success: false,
-        error: 'This URL has already been submitted',
-        urlHash: urlHash,
-        existingRequestId: existingRequestId,
-        status: existingCrawl.crawl_status,
-        alreadyExists: true,
-        message: existingCrawl.crawl_status === 'completed' 
-          ? 'URL has been processed. View its summary in history.'
-          : existingCrawl.crawl_status === 'crawling'
-          ? 'URL is currently being processed. Please wait.'
-          : 'URL is in processing queue. Please check back shortly.'
-      });
-    }
-
-    // Create unique search record for new URL
     const timestamp = Date.now();
     const crypto = require('crypto');
     const requestId = crypto.createHash('sha256')
-                           .update(`${username}_${timestamp}_${url}_${Math.random()}`)
+                           .update(`${username}_${timestamp}_${query}`)
                            .digest('hex');
 
+    // Store search query in database
     await database.query(
       'INSERT INTO searches (request_id, user_id, query) VALUES (?, ?, ?)',
-      [requestId, userId, url]
+      [requestId, userId, query]
     );
 
+    // Forward to Search proxy with authentication
+    const axios = require('axios');
     try {
-      const crawlResult = await global.crawlerModule.crawlUrl(url, userId);
+      // Generate authentication for internal request
+      const authTimestamp = Date.now().toString();
+      const requestBody = { q: query, requestId };
+      const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'development-internal-secret-for-mvp-only';
       
-      if (crawlResult.success) {
-        await database.query(
-          'UPDATE searches SET result_urls = ? WHERE request_id = ?',
-          [JSON.stringify([crawlResult.urlHash]), requestId]
+      const signature = crypto.createHmac('sha256', INTERNAL_SECRET)
+        .update(`${authTimestamp}.${JSON.stringify(requestBody)}`)
+        .digest('hex');
+      
+      const proxyResponse = await axios.post('https://search-zqjl.onrender.com/proxy-search', requestBody, {
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-auth': `${authTimestamp}.${signature}`
+        }
+      });
+
+      // Store search result first
+      await database.query(
+        'UPDATE searches SET result = ? WHERE request_id = ?',
+        [JSON.stringify(proxyResponse.data.data), requestId]
+      );
+
+      // Process search results with auto-crawl
+      let processResult = { urlHashes: [], autoCrawl: { selectedUrls: 0, newUrls: 0, alreadyCrawled: 0, startedCrawling: [], skippedCrawling: [] } };
+      
+      try {
+        processResult = await global.crawlerModule.processSearchResultsWithAutoCrawl(
+          proxyResponse.data.data, 
+          userId
         );
 
-        logger.info('URL submitted and crawled successfully', { userId, url, requestId, urlHash: crawlResult.urlHash });
-
-        res.json({
-          success: true,
-          requestId,
-          urlHash: crawlResult.urlHash,
-          message: 'URL submitted for processing'
-        });
-      } else {
-        res.status(500).json({ 
-          error: 'Failed to process URL',
-          requestId
-        });
+        // Update with URL hashes
+        await database.query(
+          'UPDATE searches SET result_urls = ? WHERE request_id = ?',
+          [JSON.stringify(processResult.urlHashes), requestId]
+        );
+      } catch (crawlError) {
+        logger.error('خطا در پردازش خودکار خزش', crawlError, { userId, requestId });
+        // Continue without auto-crawl if it fails
       }
 
-    } catch (crawlError) {
-      logger.error('Error in crawl URL', crawlError, { userId, url, requestId });
+      logger.info('جستجو موفق', { userId, query, requestId, urlCount: processResult.urlHashes.length });
+
+      res.json({
+        success: true,
+        requestId,
+        data: proxyResponse.data.data,
+        urlHashes: processResult.urlHashes.length,
+        autoCrawl: processResult.autoCrawl
+      });
+
+    } catch (proxyError) {
+      logger.error('خطا در پروکسی جستجو', proxyError, { userId, query, requestId });
+      
+      // Update search record with error
+      await database.query(
+        'UPDATE searches SET result = ? WHERE request_id = ?',
+        [JSON.stringify({ error: 'Search service unavailable' }), requestId]
+      );
       
       res.status(500).json({ 
-        error: 'Failed to process URL',
+        error: 'Search service unavailable',
         requestId,
-        details: crawlError.message
+        details: proxyError.message
       });
     }
 
   } catch (error) {
-    logger.error('Error in submit URL', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در endpoint جستجو', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Get URL submission history
-app.get('/api/url-history', requireAuth, async (req, res) => {
+// Get search history
+app.get('/api/search-history', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const result = await database.query(
-      'SELECT request_id, query as url, created_at FROM searches WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      'SELECT request_id, query, created_at FROM searches WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
       [userId]
     );
     
-    res.json({ success: true, submissions: result.rows });
+    res.json({ success: true, searches: result.rows });
   } catch (error) {
-    logger.error('Error in URL history', error, { userId: req.user.id, ip: req.ip });
-    res.status(500).json({ error: 'Failed to get URL history' });
+    logger.error('خطا در تاریخچه جستجو', error, { userId: req.user.id, ip: req.ip });
+    res.status(500).json({ error: 'Failed to get search history' });
+  }
+});
+
+// Restore search from history
+app.get('/api/search/:requestId/restore', requireAuth, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const userId = req.user.id;
+    
+    // Get search data
+    const searchResult = await database.query(
+      'SELECT * FROM searches WHERE request_id = ? AND user_id = ?',
+      [requestId, userId]
+    );
+    
+    if (searchResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Search not found' });
+    }
+    
+    const search = searchResult.rows[0];
+    let result = null;
+    let urlHashes = [];
+    
+    try {
+      result = JSON.parse(search.result || '{}');
+      urlHashes = JSON.parse(search.result_urls || '[]');
+    } catch (e) {
+      result = {};
+      urlHashes = [];
+    }
+    
+    res.json({
+      success: true,
+      requestId: requestId,
+      query: search.query,
+      data: result,
+      urlHashes: urlHashes,
+      searchDate: search.created_at
+    });
+    
+  } catch (error) {
+    logger.error('خطا در بازیابی جستجو', error, { userId: req.user.id, ip: req.ip });
+    res.status(500).json({ error: 'Failed to restore search' });
   }
 });
 
@@ -656,7 +471,7 @@ app.get('/api/database-info', async (req, res) => {
     const stats = await database.getStats();
     res.json({ success: true, database: stats });
   } catch (error) {
-    logger.error('Error in database info', error, { ip: req.ip });
+    logger.error('خطا در اطلاعات دیتابیس', error, { ip: req.ip });
     res.status(500).json({ error: 'Failed to get database information' });
   }
 });
@@ -671,7 +486,7 @@ app.post('/api/crawl-url', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
 
-    logger.info('Crawl URL request', { userId, url });
+    logger.info('درخواست crawl URL', { userId, url });
     
     const result = await global.crawlerModule.crawlUrl(url, userId);
     
@@ -691,7 +506,7 @@ app.post('/api/crawl-url', requireAuth, async (req, res) => {
     }
 
   } catch (error) {
-    logger.error('Error in crawl URL', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در crawl URL', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -708,7 +523,7 @@ app.get('/api/client-requests', requireAuth, async (req, res) => {
       requests: requests
     });
   } catch (error) {
-    logger.error('Error getting client requests', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در دریافت درخواست‌های client', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to get client requests' });
   }
 });
@@ -731,7 +546,7 @@ app.get('/api/client-results/:requestId', requireAuth, async (req, res) => {
       data: result
     });
   } catch (error) {
-    logger.error('Error getting client results', error, { requestId: req.params.requestId, ip: req.ip });
+    logger.error('خطا در دریافت نتایج client', error, { requestId: req.params.requestId, ip: req.ip });
     res.status(500).json({ error: 'Failed to get client results' });
   }
 });
@@ -754,7 +569,7 @@ app.get('/api/client-content/:requestId', requireAuth, async (req, res) => {
       data: content
     });
   } catch (error) {
-    logger.error('Error getting client content', error, { requestId: req.params.requestId, ip: req.ip });
+    logger.error('خطا در دریافت محتوای client', error, { requestId: req.params.requestId, ip: req.ip });
     res.status(500).json({ error: 'Failed to get client content' });
   }
 });
@@ -777,7 +592,7 @@ app.get('/api/crawl-status/:urlHash', requireAuth, async (req, res) => {
       data: status
     });
   } catch (error) {
-    logger.error('Error in crawl status', error, { urlHash: req.params.urlHash, ip: req.ip });
+    logger.error('خطا در وضعیت خزش', error, { urlHash: req.params.urlHash, ip: req.ip });
     res.status(500).json({ error: 'Failed to get crawl status' });
   }
 });
@@ -798,7 +613,7 @@ app.get('/api/pending-crawls', requireAuth, async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    logger.error('Error in pending crawls', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در خزش‌های انتظار', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to get pending crawls' });
   }
 });
@@ -832,7 +647,7 @@ app.post('/api/retry-failed-crawls', requireAuth, async (req, res) => {
     
     // Start retry in background
     global.crawlerModule.crawlInBackground(urlsToRetry, userId).catch(error => {
-      console.error('Error in retry:', error);
+      console.error('خطا در تلاش مجدد:', error);
     });
     
     res.json({
@@ -842,7 +657,7 @@ app.post('/api/retry-failed-crawls', requireAuth, async (req, res) => {
     });
     
   } catch (error) {
-    logger.error('Error in retry', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در تلاش مجدد', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to retry crawls' });
   }
 });
@@ -856,7 +671,7 @@ app.get('/api/client-stats', requireAuth, async (req, res) => {
       data: stats
     });
   } catch (error) {
-    logger.error('Error in client stats', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در آمار client', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to get client statistics' });
   }
 });
@@ -870,7 +685,7 @@ app.get('/api/blocked-domains', requireAuth, async (req, res) => {
       blockedDomains: blockedDomains
     });
   } catch (error) {
-    logger.error('Error getting blocked domains', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در دریافت دامنه‌های ممنوع', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to get blocked domains' });
   }
 });
@@ -887,7 +702,7 @@ app.post('/api/blocked-domains', requireAuth, async (req, res) => {
     const added = global.crawlerModule.domainFilter.addBlockedDomain(domain.trim());
     
     if (added) {
-      logger.info('New domain added to blocked list', { domain, userId: req.user.id });
+      logger.info('دامنه جدید به لیست ممنوع اضافه شد', { domain, userId: req.user.id });
       res.json({
         success: true,
         message: 'Domain added to blocked list',
@@ -900,7 +715,7 @@ app.post('/api/blocked-domains', requireAuth, async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error('Error adding blocked domain', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در اضافه کردن دامنه ممنوع', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to add blocked domain' });
   }
 });
@@ -912,7 +727,7 @@ app.delete('/api/blocked-domains/:domain', requireAuth, async (req, res) => {
     const removed = global.crawlerModule.domainFilter.removeBlockedDomain(domain);
     
     if (removed) {
-      logger.info('Domain removed from blocked list', { domain, userId: req.user.id });
+      logger.info('دامنه از لیست ممنوع حذف شد', { domain, userId: req.user.id });
       res.json({
         success: true,
         message: 'Domain removed from blocked list',
@@ -925,7 +740,7 @@ app.delete('/api/blocked-domains/:domain', requireAuth, async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error('Error removing blocked domain', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در حذف دامنه ممنوع', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to remove blocked domain' });
   }
 });
@@ -946,7 +761,7 @@ app.post('/api/test-domain-filter', requireAuth, async (req, res) => {
       result: testResult
     });
   } catch (error) {
-    logger.error('Error testing domain filter', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در تست فیلتر دامنه', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to test domain filter' });
   }
 });
@@ -966,16 +781,16 @@ const requireAdminAuth = async (req, res, next) => {
     const token = authHeader.substring(7);
     const sessionId = token;
 
-    // Validate admin session
+    // بررسی session معتبر ادمین
     const session = await security.validateSession(sessionId);
-    if (!session || session.userId !== 1) { // Assuming user with ID 1 is admin
+    if (!session || session.userId !== 1) { // فرض بر این که کاربر با ID 1 ادمین است
       return res.status(401).json({ success: false, error: 'Invalid admin session' });
     }
 
     req.adminUserId = session.userId;
     next();
   } catch (error) {
-    logger.error('Error in admin authentication middleware', error);
+    logger.error('خطا در middleware احراز هویت ادمین', error);
     return res.status(500).json({ success: false, error: 'Admin authentication error' });
   }
 };
@@ -991,14 +806,14 @@ app.post('/api/admin/login', async (req, res) => {
 
     const isValidPassword = await adminModule.verifyAdminPassword(password);
     if (!isValidPassword) {
-      logger.security('Invalid admin panel login attempt', { ip: req.ip });
+      logger.security('تلاش ورود نامعتبر به پنل ادمین', { ip: req.ip });
       return res.status(401).json({ success: false, error: 'Invalid admin password' });
     }
 
-    // Create session for admin (assuming user with ID 1 is admin)
+    // ایجاد session برای ادمین (فرض بر این که کاربر با ID 1 ادمین است)
     const session = await security.createSession(1, req.ip, req.get('User-Agent'));
     
-    logger.security('Successful admin login', { ip: req.ip, sessionId: session.sessionId });
+    logger.security('ورود موفق ادمین', { ip: req.ip, sessionId: session.sessionId });
     
     res.json({
       success: true,
@@ -1007,7 +822,7 @@ app.post('/api/admin/login', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error in admin login', error);
+    logger.error('خطا در ورود ادمین', error);
     res.status(500).json({ success: false, error: 'Admin login failed' });
   }
 });
@@ -1021,7 +836,7 @@ app.get('/api/admin/stats', requireAdminAuth, async (req, res) => {
       data: stats
     });
   } catch (error) {
-    logger.error('Error getting admin stats', error);
+    logger.error('خطا در دریافت آمار ادمین', error);
     res.status(500).json({ success: false, error: 'Failed to get admin stats' });
   }
 });
@@ -1035,7 +850,7 @@ app.get('/api/admin/users', requireAdminAuth, async (req, res) => {
       data: users
     });
   } catch (error) {
-    logger.error('Error getting users list', error);
+    logger.error('خطا در دریافت لیست کاربران', error);
     res.status(500).json({ success: false, error: 'Failed to get users list' });
   }
 });
@@ -1049,7 +864,7 @@ app.get('/api/admin/system', requireAdminAuth, async (req, res) => {
       data: systemInfo
     });
   } catch (error) {
-    logger.error('Error getting system info', error);
+    logger.error('خطا در دریافت اطلاعات سیستم', error);
     res.status(500).json({ success: false, error: 'Failed to get system info' });
   }
 });
@@ -1058,13 +873,13 @@ app.get('/api/admin/system', requireAdminAuth, async (req, res) => {
 app.post('/api/admin/cleanup-sessions', requireAdminAuth, async (req, res) => {
   try {
     const result = await adminModule.cleanupExpiredSessions();
-    logger.info('Session cleanup by admin', { cleaned: result.cleaned });
+    logger.info('پاک سازی جلسات توسط ادمین', { cleaned: result.cleaned });
     res.json({
       success: true,
       data: result
     });
   } catch (error) {
-    logger.error('Error cleaning up sessions', error);
+    logger.error('خطا در پاک سازی جلسات', error);
     res.status(500).json({ success: false, error: 'Failed to cleanup sessions' });
   }
 });
@@ -1073,13 +888,13 @@ app.post('/api/admin/cleanup-sessions', requireAdminAuth, async (req, res) => {
 app.post('/api/admin/optimize-database', requireAdminAuth, async (req, res) => {
   try {
     const result = await adminModule.optimizeDatabase();
-    logger.info('Database optimization by admin');
+    logger.info('بهینه سازی دیتابیس توسط ادمین');
     res.json({
       success: true,
       data: result
     });
   } catch (error) {
-    logger.error('Error optimizing database', error);
+    logger.error('خطا در بهینه سازی دیتابیس', error);
     res.status(500).json({ success: false, error: 'Failed to optimize database' });
   }
 });
@@ -1098,7 +913,7 @@ app.get('/api/admin/download-stats', requireAdminAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error getting download stats', error);
+    logger.error('خطا در دریافت آمار دانلود', error);
     res.status(500).json({ success: false, error: 'Failed to get download stats' });
   }
 });
@@ -1113,7 +928,7 @@ app.post('/api/admin/generate-download-token', requireAdminAuth, async (req, res
     }
     
     if (!adminDownloadModule.validateDirectory(directory)) {
-      logger.security('Attempt to download unauthorized directory', { directory, userId: req.adminUserId });
+      logger.security('تلاش دانلود دایرکتوری غیرمجاز', { directory, userId: req.adminUserId });
       return res.status(403).json({ success: false, error: 'Invalid directory' });
     }
     
@@ -1130,7 +945,7 @@ app.post('/api/admin/generate-download-token', requireAdminAuth, async (req, res
       global.downloadTokens.delete(tokenData.token);
     }, 6 * 60 * 1000);
     
-    logger.security('Download token created', { directory, userId: req.adminUserId });
+    logger.security('توکن دانلود ایجاد شد', { directory, userId: req.adminUserId });
     
     res.json({
       success: true,
@@ -1138,7 +953,7 @@ app.post('/api/admin/generate-download-token', requireAdminAuth, async (req, res
       expiresIn: 300 // 5 minutes
     });
   } catch (error) {
-    logger.error('Error creating download token', error);
+    logger.error('خطا در ایجاد توکن دانلود', error);
     res.status(500).json({ success: false, error: 'Failed to generate download token' });
   }
 });
@@ -1155,11 +970,11 @@ app.get('/api/admin/download/:token', async (req, res) => {
     const tokenData = global.downloadTokens.get(token);
     
     if (!adminDownloadModule.verifyDownloadToken(token, tokenData)) {
-      logger.security('Download attempt with invalid token', { token });
+      logger.security('تلاش دانلود با توکن نامعتبر', { token });
       return res.status(401).json({ success: false, error: 'Invalid or expired token' });
     }
     
-    logger.security('Starting directory download', { 
+    logger.security('شروع دانلود دایرکتوری', { 
       directory: tokenData.dirName, 
       userId: tokenData.userId 
     });
@@ -1171,7 +986,7 @@ app.get('/api/admin/download/:token', async (req, res) => {
     global.downloadTokens.delete(token);
     
   } catch (error) {
-    logger.error('Error downloading file', error);
+    logger.error('خطا در دانلود فایل', error);
     if (!res.headersSent) {
       res.status(500).json({ success: false, error: 'Download failed' });
     }
@@ -1182,7 +997,7 @@ app.get('/api/admin/download/:token', async (req, res) => {
 app.post('/api/admin/preview-backup', requireAdminAuth, (req, res) => {
   uploadBackup(req, res, async (err) => {
     if (err) {
-      logger.error('Error uploading file', err);
+      logger.error('خطا در آپلود فایل', err);
       return res.status(400).json({ success: false, error: 'Upload failed' });
     }
 
@@ -1203,7 +1018,7 @@ app.post('/api/admin/preview-backup', requireAdminAuth, (req, res) => {
         totalDirs: contents.filter(c => c.isDirectory).length
       });
     } catch (error) {
-      logger.error('Error previewing backup', error);
+      logger.error('خطا در پیش‌نمایش بک‌آپ', error);
       res.status(500).json({ success: false, error: 'Failed to preview backup' });
     }
   });
@@ -1213,7 +1028,7 @@ app.post('/api/admin/preview-backup', requireAdminAuth, (req, res) => {
 app.post('/api/admin/restore-backup', requireAdminAuth, (req, res) => {
   uploadBackup(req, res, async (err) => {
     if (err) {
-      logger.error('Error uploading restore file', err);
+      logger.error('خطا در آپلود فایل بازیابی', err);
       return res.status(400).json({ success: false, error: 'Upload failed' });
     }
 
@@ -1233,7 +1048,7 @@ app.post('/api/admin/restore-backup', requireAdminAuth, (req, res) => {
         targetDirectory
       );
       
-      logger.security('Successful backup restoration', { 
+      logger.security('بازیابی بک‌آپ موفق', { 
         targetDirectory,
         fileSize: req.file.size,
         userId: req.adminUserId 
@@ -1246,7 +1061,7 @@ app.post('/api/admin/restore-backup', requireAdminAuth, (req, res) => {
         fileSize: adminDownloadModule.formatBytes(req.file.size)
       });
     } catch (error) {
-      logger.error('Error restoring backup', error);
+      logger.error('خطا در بازیابی بک‌آپ', error);
       res.status(500).json({ success: false, error: 'Failed to restore backup' });
     }
   });
@@ -1264,7 +1079,7 @@ app.get('/api/content/files', requireAuth, async (req, res) => {
     const files = await global.clientDatabase.getAllJsonFiles();
     res.json({ success: true, files });
   } catch (error) {
-    logger.error('Error getting content files', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در دریافت فایل‌های محتوا', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1275,7 +1090,7 @@ app.get('/api/content/pending', requireAuth, async (req, res) => {
     const pendingFiles = await global.clientDatabase.getPendingSummaryFiles();
     res.json({ success: true, files: pendingFiles });
   } catch (error) {
-    logger.error('Error getting pending files', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در دریافت فایل‌های در انتظار', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1287,144 +1102,6 @@ const searchLimitCheck = (req, res, next) => {
   }
   next();
 };
-
-// Get domain summaries with pagination
-app.get('/api/domain-summaries', requireAuth, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 10, 10); // حداکثر 10 آیتم
-    const type = req.query.type || 'all'; // all, manual, auto
-    const status = req.query.status || 'all'; // all, completed, processing
-    const offset = (page - 1) * limit;
-
-    // Get user domain and subdomains
-    const userResult = await database.query('SELECT domain FROM users WHERE id = ?', [userId]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-    
-    const userDomain = userResult.rows[0].domain;
-    if (!userDomain) {
-      return res.status(400).json({ success: false, error: 'No domain configured' });
-    }
-
-    // Get user's subdomains
-    const subdomainsResult = await database.query(
-      'SELECT subdomain FROM user_subdomains WHERE user_id = ?',
-      [userId]
-    );
-    const userSubdomains = subdomainsResult.rows.map(r => r.subdomain);
-
-    // Extract domain pattern for LIKE query
-    const domainPattern = userDomain.replace(/^https?:\/\//, '').replace(/^www\./, '');
-
-    // Build WHERE clause to include main domain and all subdomains
-    let whereConditions = [];
-    let queryParams = [];
-
-    // Add main domain condition
-    whereConditions.push(`uh.original_url LIKE ?`);
-    queryParams.push(`%${domainPattern}%`);
-
-    // Add subdomain conditions
-    if (userSubdomains.length > 0) {
-      userSubdomains.forEach(subdomain => {
-        const subPattern = subdomain.replace(/^https?:\/\//, '').replace(/^www\./, '');
-        whereConditions.push(`uh.original_url LIKE ?`);
-        queryParams.push(`%${subPattern}%`);
-      });
-    }
-
-    // Combine all conditions with OR
-    const domainCondition = `(${whereConditions.join(' OR ')})`;
-    whereConditions = [domainCondition];
-
-    if (status !== 'all') {
-      if (status === 'completed') {
-        whereConditions.push(`uh.summary_status = 'summarized'`);
-      } else if (status === 'processing') {
-        whereConditions.push(`uh.summary_status IN ('pending', 'processing', 'queued')`);
-      }
-    }
-
-    // Add type filter using subquery
-    let typeCondition = '';
-    let typeParams = [];
-    if (type === 'manual') {
-      typeCondition = ` AND EXISTS (
-        SELECT 1 FROM searches 
-        WHERE user_id = ? AND result_urls LIKE '%' || uh.url_hash || '%'
-      )`;
-      typeParams.push(userId);
-    } else if (type === 'auto') {
-      typeCondition = ` AND NOT EXISTS (
-        SELECT 1 FROM searches 
-        WHERE user_id = ? AND result_urls LIKE '%' || uh.url_hash || '%'
-      )`;
-      typeParams.push(userId);
-    }
-
-    // Get total count (no userId needed in count query)
-    const countQueryParams = [...queryParams, ...typeParams];
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM url_hashes uh
-      WHERE ${whereConditions.join(' AND ')}${typeCondition}
-    `;
-    const countResult = await database.query(countQuery, countQueryParams);
-    const total = countResult.rows[0].total;
-    const totalPages = Math.ceil(total / limit);
-
-    // Get paginated data
-    const dataQuery = `
-      SELECT 
-        uh.url_hash,
-        uh.original_url,
-        COALESCE(uh.crawl_completed_at, uh.last_seen, uh.first_seen) as crawl_completed_at,
-        uh.summary_status,
-        s.summary_text,
-        s.created_at as summary_date,
-        CASE 
-          WHEN EXISTS (
-            SELECT 1 FROM searches 
-            WHERE user_id = ? AND result_urls LIKE '%' || uh.url_hash || '%'
-          ) THEN 'manual'
-          ELSE 'auto'
-        END as crawl_type
-      FROM url_hashes uh
-      LEFT JOIN summaries s ON uh.url_hash = s.url_hash
-      WHERE ${whereConditions.join(' AND ')}${typeCondition}
-      ORDER BY COALESCE(uh.crawl_completed_at, uh.last_seen, uh.first_seen) DESC
-      LIMIT ? OFFSET ?
-    `;
-    
-    // Build params: userId for CASE, domain params, userId for type filter (if any), limit, offset
-    const dataParams = [userId, ...queryParams, ...typeParams, limit, offset];
-    const dataResult = await database.query(dataQuery, dataParams);
-
-    const items = dataResult.rows;
-
-    res.json({
-      success: true,
-      data: {
-        items: items,
-        pagination: {
-          page: page,
-          limit: limit,
-          total: total,
-          totalPages: totalPages,
-          hasNext: page < totalPages,
-          hasPrev: page > 1
-        }
-      }
-    });
-
-  } catch (error) {
-    logger.error('Error getting domain summaries', error, { userId: req.user.id, ip: req.ip });
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
 // Get summaries for a specific search request
 app.get('/api/search/:requestId/summaries', requireAuth, searchLimitCheck, async (req, res) => {
@@ -1474,7 +1151,7 @@ app.get('/api/search/:requestId/summaries', requireAuth, searchLimitCheck, async
     });
     
   } catch (error) {
-    logger.error('Error getting search summaries', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در دریافت خلاصه‌های جستجو', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1504,7 +1181,7 @@ app.post('/api/content/:urlHash/process', requireAuth, async (req, res) => {
     const jsonContent = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     
     // Send to agent for processing
-    logger.info(`🚀 [${urlHash}] Sending file for processing...`, { userId: req.user.id });
+    logger.info(`🚀 [${urlHash}] ارسال فایل برای پردازش...`, { userId: req.user.id });
     const axios = require('axios');
     const response = await axios.post(`${AGENT_URL}/api/process`, {
       fileId: urlHash,
@@ -1535,7 +1212,7 @@ app.post('/api/content/:urlHash/process', requireAuth, async (req, res) => {
     }
 
   } catch (error) {
-    logger.error('Error sending file', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در ارسال فایل', error, { userId: req.user.id, ip: req.ip });
     if (error.code === 'ECONNREFUSED') {
       res.status(503).json({ 
         success: false, 
@@ -1557,7 +1234,7 @@ app.post('/api/content/process-all', requireAuth, async (req, res) => {
     const results = [];
     const { priority = 1, maxAttempts = 3 } = req.body;
     
-    logger.info(`📦 Sending ${pendingFiles.length} pending files...`, { userId: req.user.id });
+    logger.info(`📦 ارسال ${pendingFiles.length} فایل در انتظار...`, { userId: req.user.id });
     
     const fs = require('fs');
     const path = require('path');
@@ -1601,14 +1278,14 @@ app.post('/api/content/process-all', requireAuth, async (req, res) => {
             processed: true
           });
           
-          console.log(`✅ Processed: ${file.url_hash}`);
+          console.log(`✅ پردازش شد: ${file.url_hash}`);
         } else {
           results.push({
             urlHash: file.url_hash,
             success: false,
             error: response.data.error
           });
-          console.error(`❌ Processing failed: ${file.url_hash} - ${response.data.error}`);
+          console.error(`❌ پردازش ناموفق: ${file.url_hash} - ${response.data.error}`);
         }
 
       } catch (error) {
@@ -1617,7 +1294,7 @@ app.post('/api/content/process-all', requireAuth, async (req, res) => {
           success: false,
           error: error.message
         });
-        console.error(`❌ Error sending ${file.url_hash}:`, error.message);
+        console.error(`❌ خطا در ارسال ${file.url_hash}:`, error.message);
       }
     }
     
@@ -1625,7 +1302,7 @@ app.post('/api/content/process-all', requireAuth, async (req, res) => {
     
     res.json({ 
       success: true, 
-      message: `Processed ${successCount}/${results.length} files`,
+      message: `پردازش شد ${successCount}/${results.length} فایل`,
       results,
       summary: {
         total: results.length,
@@ -1635,7 +1312,7 @@ app.post('/api/content/process-all', requireAuth, async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error in batch sending', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در ارسال دسته‌ای', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1663,7 +1340,7 @@ app.get('/api/content/:urlHash/summary', requireAuth, async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error getting summary', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در دریافت خلاصه', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -1734,8 +1411,8 @@ app.post('/api/summary-callback', async (req, res) => {
       });
     }
 
-    logger.info(`📥 [${fileId}] Received summary from agent (verified)`, { ip: req.ip });
-    logger.info(`📝 [${fileId}] Summary length: ${summary.length} characters`);
+    logger.info(`📥 [${fileId}] دریافت خلاصه از agent (verified)`, { ip: req.ip });
+    logger.info(`📝 [${fileId}] طول خلاصه: ${summary.length} کاراکتر`);
     
     // Save summary to database
     await global.clientDatabase.saveSummary(fileId, summary);
@@ -1743,7 +1420,7 @@ app.post('/api/summary-callback', async (req, res) => {
     
     // Log metadata if provided
     if (metadata) {
-      logger.info(`📊 [${fileId}] Metadata:`, {
+      logger.info(`📊 [${fileId}] متادیتا:`, {
         contentBlocks: metadata.contentBlocks,
         totalWords: metadata.totalWords,
         processingTime: metadata.processingTimeMs
@@ -1757,7 +1434,7 @@ app.post('/api/summary-callback', async (req, res) => {
     });
     
   } catch (error) {
-    logger.error(`❌ Error saving summary:`, error);
+    logger.error(`❌ خطا در ذخیره خلاصه:`, error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
@@ -1784,7 +1461,7 @@ app.get('/api/content/health', requireAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error in content system status', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در وضعیت سیستم محتوا', error, { userId: req.user.id, ip: req.ip });
     res.status(500).json({
       success: false,
       message: 'Content system running but database issue',
@@ -1809,7 +1486,7 @@ app.get('/api/agent/health', requireAuth, async (req, res) => {
       agent: response.data 
     });
   } catch (error) {
-    logger.error('Error connecting to agent', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در اتصال به agent', error, { userId: req.user.id, ip: req.ip });
     res.status(503).json({ 
       success: false, 
       error: 'Agent server is not available',
@@ -1830,7 +1507,7 @@ app.get('/api/agent/queue', requireAuth, async (req, res) => {
       queue: response.data 
     });
   } catch (error) {
-    logger.error('Error in agent queue status', error, { userId: req.user.id, ip: req.ip });
+    logger.error('خطا در وضعیت صف agent', error, { userId: req.user.id, ip: req.ip });
     res.status(503).json({ 
       success: false, 
       error: 'Agent server is not available',
@@ -1839,108 +1516,14 @@ app.get('/api/agent/queue', requireAuth, async (req, res) => {
   }
 });
 
-// =====================================================================
-// PUBLIC SUMMARY VIEWER ROUTE (Catch-all for URL paths)
-// =====================================================================
-
-// Public summary viewer - must be before other catch-all routes
-app.get(/^\/(.*)$/, async (req, res, next) => {
-  // Skip static files, API routes, and auth pages
-  const skipPaths = [
-    '/api/',
-    '/login',
-    '/register',
-    '/forgot-password',
-    '/dashboard',
-    '/admin',
-    '/favicon',
-    '/style.css',
-    '/auth.js',
-    '/domain-console.js',
-    '/summaries.js',
-    '/admin.js',
-    '/search-results.css',
-    '/landing.html'
-  ];
-
-  // Check if path should be skipped
-  const shouldSkip = skipPaths.some(skipPath => req.path.startsWith(skipPath));
-  
-  if (shouldSkip || req.path === '/' || req.path === '/menu-customization') {
-    return next();
-  }
-
-  // Try to serve as public summary
-  try {
-    const urlPath = req.path.substring(1); // Remove leading slash
-    
-    if (!urlPath) {
-      return next();
-    }
-
-    const result = await global.publicSummaryViewer.getSummaryByPath(urlPath);
-
-    if (result.success) {
-      const domain = urlPath.split('/')[0];
-      const htmlPage = await global.publicSummaryViewer.generateSummaryPage(result.data, domain);
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(htmlPage);
-    } else if (result.notFound || result.pending) {
-      // Try auto-crawl
-      const autoCrawlResult = await global.autoSummaryGenerator.handleAutoCrawlRequest(urlPath);
-      
-      if (autoCrawlResult.status === 'initiated' || autoCrawlResult.status === 'processing') {
-        logger.info(`🤖 Auto-crawl ${autoCrawlResult.status} for: ${urlPath}`);
-        const processingPage = global.publicSummaryViewer.generateErrorPage(
-          'Content is being processed. Summary will appear automatically when ready.',
-          urlPath,
-          true // Enable auto-refresh polling
-        );
-        res.status(202).setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(processingPage);
-      } else if (autoCrawlResult.status === 'completed') {
-        // Summary ready, reload page
-        res.redirect(req.path);
-      } else if (autoCrawlResult.status === 'not_found' || autoCrawlResult.reason === 'url_not_found') {
-        // URL does not exist (404) - DO NOT save to database
-        logger.info(`🚫 404 - Page does not exist: ${urlPath} (HTTP ${autoCrawlResult.httpStatus || 'unknown'})`);
-        const errorPage = global.publicSummaryViewer.generate404Page(urlPath);
-        res.status(404).setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(errorPage);
-      } else if (autoCrawlResult.status === 'not_eligible') {
-        const errorPage = global.publicSummaryViewer.generateErrorPage(
-          autoCrawlResult.message || 'This URL is not eligible for summarization or is not registered in the system.',
-          urlPath,
-          false // No auto-refresh
-        );
-        res.status(404).setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(errorPage);
-      } else {
-        const errorPage = global.publicSummaryViewer.generateErrorPage(
-          'Error processing URL. Please try again.',
-          urlPath,
-          false
-        );
-        res.status(500).setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(errorPage);
-      }
-    } else {
-      return next();
-    }
-  } catch (error) {
-    logger.error('Error in public summary display', error, { path: req.path });
-    next();
-  }
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
-  logger.error('Unhandled error', err, { ip: req.ip, path: req.path });
+  logger.error('خطای مدیریت نشده', err, { ip: req.ip, path: req.path });
   res.status(500).json({ error: 'Internal server error' });
 });
 
 // 404 handler for API routes only
-app.use(/^\/api\/(.*)/, (req, res) => {
+app.use(/^\/api\/.*/, (req, res) => {
   res.status(404).json({ error: 'API route not found' });
 });
 
@@ -1953,21 +1536,21 @@ app.use((req, res) => {
 
 // Start server
 const server = app.listen(PORT, '0.0.0.0', async () => {
-  logger.info(`🚀 Secure authentication server started on port ${PORT}`);
-  logger.info('🔒 Security features enabled: Rate limiting, CSRF protection, Session management');
-  logger.info('📊 Using local SQLite database - no external dependencies');
+  logger.info(`🚀 سرور احراز هویت امن روی پورت ${PORT} آغاز شد`);
+  logger.info('🔒 قابلیت‌های امنیتی فعال: Rate limiting, CSRF protection, Session management');
+  logger.info('📊 استفاده از دیتابیس SQLite محلی - بدون وابستگی خارجی');
   
   // Display database statistics
   try {
     const stats = await database.getStats();
     const sessionStats = await security.getSessionStats();
-    logger.info(`📈 Database status: ${stats.status} | Users: ${stats.totalUsers} | Type: ${stats.databaseType}`);
-    logger.info(`🔐 Active sessions: ${sessionStats.activeSessions} | Total sessions: ${sessionStats.totalSessions}`);
+    logger.info(`📈 وضعیت دیتابیس: ${stats.status} | کاربران: ${stats.totalUsers} | نوع: ${stats.databaseType}`);
+    logger.info(`🔐 جلسات فعال: ${sessionStats.activeSessions} | کل جلسات: ${sessionStats.totalSessions}`);
     
     // Database initialized - admin panel available at /admin
     
   } catch (error) {
-    logger.error('Error getting server stats', error);
+    logger.error('خطا در دریافت آمار سرور', error);
   }
 });
 

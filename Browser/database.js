@@ -39,30 +39,12 @@ class Database {
           security_question TEXT,
           security_answer_hash VARCHAR(255),
           salt VARCHAR(255) NOT NULL,
-          domain VARCHAR(255),
-          verification_status VARCHAR(20) DEFAULT 'unverified',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           last_login DATETIME,
           failed_attempts INTEGER DEFAULT 0,
           locked_until DATETIME
         )
       `);
-
-      // Add domain and verification_status columns to existing users table
-      try {
-        await this.query(`ALTER TABLE users ADD COLUMN domain VARCHAR(255)`);
-      } catch (e) {
-        // Column already exists
-      }
-
-      try {
-        await this.query(`ALTER TABLE users ADD COLUMN verification_status VARCHAR(20) DEFAULT 'unverified'`);
-      } catch (e) {
-        // Column already exists
-      }
-
-      // Enable foreign key constraints in SQLite
-      await this.query('PRAGMA foreign_keys = ON');
 
       // Create sessions table
       await this.query(`
@@ -109,46 +91,6 @@ class Database {
 
       await this.query(`
         CREATE INDEX IF NOT EXISTS idx_searches_request_id ON searches(request_id)
-      `);
-
-      await this.query(`
-        CREATE TABLE IF NOT EXISTS domain_verifications (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          domain VARCHAR(255) NOT NULL,
-          verification_token VARCHAR(64) NOT NULL,
-          txt_record_name VARCHAR(100) NOT NULL,
-          status VARCHAR(20) DEFAULT 'pending',
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          verified_at DATETIME,
-          expires_at DATETIME NOT NULL,
-          last_check_at DATETIME,
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-      `);
-
-      await this.query(`
-        CREATE TABLE IF NOT EXISTS user_subdomains (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER NOT NULL,
-          subdomain VARCHAR(255) NOT NULL,
-          verification_status VARCHAR(20) DEFAULT 'verified',
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-          UNIQUE(user_id, subdomain)
-        )
-      `);
-
-      await this.query(`
-        CREATE INDEX IF NOT EXISTS idx_domain_verifications_user_id ON domain_verifications(user_id)
-      `);
-
-      await this.query(`
-        CREATE INDEX IF NOT EXISTS idx_domain_verifications_token ON domain_verifications(verification_token)
-      `);
-
-      await this.query(`
-        CREATE INDEX IF NOT EXISTS idx_user_subdomains_user_id ON user_subdomains(user_id)
       `);
 
       this.isInitialized = true;
