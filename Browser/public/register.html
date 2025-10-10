@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container auth-container">
+        <div class="auth-card">
+            <h2>Register</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required minlength="3">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                    <small>At least 8 characters with a combination of uppercase, lowercase, numbers and symbols</small>
+                </div>
+                <div class="form-group">
+                    <label for="securityQuestion">Security Question:</label>
+                    <input type="text" id="securityQuestion" name="securityQuestion" required minlength="10">
+                </div>
+                <div class="form-group">
+                    <label for="securityAnswer">Security Answer:</label>
+                    <input type="text" id="securityAnswer" name="securityAnswer" required minlength="3">
+                </div>
+                <button type="submit" class="btn-primary">Register</button>
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage"></div>
+            </form>
+            <div class="auth-links">
+                <a href="login.html">Login</a> | 
+                <a href="forgot-password.html">Forgot Password</a>
+            </div>
+        </div>
+    </div>
+    <script src="auth.js"></script>
+</body>
+</html>

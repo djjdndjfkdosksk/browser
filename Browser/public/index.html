@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="search-results.css"></head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <div class="logo">
+                <span class="logo-sea">Za</span><span class="logo-search">Two</span>
+            </div>
+            <div class="user-section">
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-info" id="userInfo">
+                        <span id="welcomeMessage">Loading...</span>
+                        <div class="user-avatar" id="userAvatar">U</div>
+                    </div>
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        <button id="logoutBtn" class="logout-btn">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <div class="search-box">
+                        <div class="search-icon search-icon-left">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </div>
+                        <input type="text" id="searchInput" placeholder="Search the web..." onkeypress="handleSearchKeyPress(event)">
+                        <div class="search-actions">
+                            <button class="history-search" id="historyBtn" title="Search History" onclick="toggleSearchHistory()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                    <path d="M3 3v5h5"></path>
+                                    <path d="M12 7v5l4 2"></path>
+                                </svg>
+                            </button>
+                            <button class="voice-search" title="Voice search">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                                    <line x1="8" y1="22" x2="16" y2="22"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- History -->
+                    <div class="search-history-dropdown" id="searchHistoryDropdown">
+                        <div class="history-header">
+                            <h4>Search History</h4>
+                            <button onclick="clearSearchHistory()" class="clear-history-btn">Clear All</button>
+                        </div>
+                        <div class="history-items" id="historyItems">
+                            <div class="no-history">No search history yet.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-results" id="searchResults" style="display: none;">
+                <div class="results-container" id="resultsContainer">
+                    
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modules -->
+    <script src="auth.js"></script>
+    <script src="search.js"></script>
+    <script src="search-history.js"></script>
+    <script src="summaries.js"></script>
+    
+    <script>
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check 
+            if (!checkAuthentication()) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            
+            loadUserProfile();
+            
+            if (window.searchHistory) {
+                window.searchHistory.renderSearchHistory();
+            }
+        });
+    </script>
+</body>
+</html>
